@@ -1,0 +1,45 @@
+@tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: #0b0b0f;
+    color: #e2e2ea;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #13131a; }
+  ::-webkit-scrollbar-thumb { background: #22222e; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2a2a3a; }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  /* Desktop: show table, hide cards */
+  .desktop-table { display: block; }
+  .mobile-cards  { display: none; }
+
+  /* Tablet: 2-col stats */
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Mobile: switch to card layout */
+  @media (max-width: 620px) {
+    .stats-grid    { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .desktop-table { display: none; }
+    .mobile-cards  { display: block; }
+  }
+
+  @media (max-width: 340px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+  
