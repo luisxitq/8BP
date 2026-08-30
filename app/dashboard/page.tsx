@@ -30,6 +30,9 @@ const STATUS_STYLE: Record<string, string> = {
   banned: 'bg-red-500/15 text-red-400 border-red-500/30',
 };
 
+const btnBase =
+  'px-2.5 py-1.5 rounded-lg text-xs font-medium transition touch-manipulation disabled:opacity-40 active:scale-95';
+
 export default function DashboardPage() {
   const router = useRouter();
   const [licenses, setLicenses] = useState<License[]>([]);
@@ -38,8 +41,8 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Create form
   const [customKey, setCustomKey] = useState('');
   const [gameType, setGameType] = useState('8ball');
   const [maxDevices, setMaxDevices] = useState(1);
@@ -143,49 +146,147 @@ export default function DashboardPage() {
   }
 
   function copy(text: string) {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard?.writeText(text).catch(() => {});
+  }
+
+  function Actions({ lic }: { lic: License }) {
+    const id = lic.id;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {lic.status !== 'active' && (
+          <button
+            disabled={busy === id}
+            onClick={() => patch(id, { status: 'active' })}
+            className={`${btnBase} bg-emerald-600/20 text-emerald-400`}
+          >
+            Activate
+          </button>
+        )}
+        {lic.status !== 'banned' && (
+          <button
+            disabled={busy === id}
+            onClick={() => patch(id, { status: 'banned' })}
+            className={`${btnBase} bg-red-600/20 text-red-400`}
+          >
+            Ban
+          </button>
+        )}
+        <button
+          disabled={busy === id}
+          onClick={() => patch(id, { reset_hwid: true })}
+          className={`${btnBase} bg-zinc-700 text-zinc-300`}
+        >
+          Reset HWID
+        </button>
+        <button
+          disabled={busy === id}
+          onClick={() => {
+            const d = prompt('Días a extender:', '30');
+            if (d) patch(id, { extend_days: Number(d) });
+          }}
+          className={`${btnBase} bg-zinc-700 text-zinc-300`}
+        >
+          +Days
+        </button>
+        <button
+          disabled={busy === id}
+          onClick={() => remove(id)}
+          className={`${btnBase} bg-red-900/40 text-red-400`}
+        >
+          Delete
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-[100dvh] bg-zinc-950 pb-8">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-              <span className="text-sm font-bold text-emerald-400">8BP</span>
+      <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <span className="text-xs sm:text-sm font-bold text-emerald-400">8BP</span>
             </div>
-            <div>
-              <h1 className="font-semibold leading-tight">License Panel</h1>
-              <p className="text-xs text-zinc-500">Firebase RTDB · Aim Engine</p>
+            <div className="min-w-0">
+              <h1 className="font-semibold leading-tight text-sm sm:text-base truncate">License Panel</h1>
+              <p className="text-[10px] sm:text-xs text-zinc-500 hidden xs:block sm:block">Firebase · Aim Engine</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Desktop actions */}
+          <div className="hidden sm:flex items-center gap-2">
             <button
               onClick={() => setShowCreate(true)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition"
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition touch-manipulation"
             >
               + Create Key
             </button>
             <button
               onClick={load}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm transition"
+              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm transition touch-manipulation"
             >
               Refresh
             </button>
             <button
               onClick={logout}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-400 transition"
+              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-400 transition touch-manipulation"
             >
               Logout
             </button>
           </div>
+
+          {/* Mobile: create + menu */}
+          <div className="flex sm:hidden items-center gap-1.5">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-xs font-medium touch-manipulation"
+            >
+              + Key
+            </button>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="p-2 rounded-lg bg-zinc-800 touch-manipulation"
+              aria-label="Menú"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {menuOpen ? (
+                  <path d="M6 6l12 12M18 6L6 18" />
+                ) : (
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {menuOpen && (
+          <div className="sm:hidden border-t border-zinc-800 px-3 py-2 flex gap-2 bg-zinc-900">
+            <button
+              onClick={() => {
+                load();
+                setMenuOpen(false);
+              }}
+              className="flex-1 py-2.5 rounded-lg bg-zinc-800 text-sm touch-manipulation"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                logout();
+              }}
+              className="flex-1 py-2.5 rounded-lg bg-zinc-800 text-sm text-red-400 touch-manipulation"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
           {[
             { label: 'Total', value: stats.total, color: 'text-zinc-100' },
             { label: 'Active', value: stats.active, color: 'text-emerald-400' },
@@ -194,16 +295,16 @@ export default function DashboardPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 sm:px-4 sm:py-3"
             >
-              <p className="text-xs text-zinc-500 uppercase tracking-wide">{s.label}</p>
-              <p className={`text-2xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wide">{s.label}</p>
+              <p className={`text-xl sm:text-2xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
             </div>
           ))}
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          <div className="mb-4 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm break-words">
             {error}
           </div>
         )}
@@ -211,119 +312,136 @@ export default function DashboardPage() {
         {loading ? (
           <p className="text-center text-zinc-500 py-12">Cargando…</p>
         ) : licenses.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-zinc-800 rounded-2xl">
+          <div className="text-center py-12 sm:py-16 border border-dashed border-zinc-800 rounded-2xl px-4">
             <p className="text-zinc-500 mb-3">No hay keys todavía</p>
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+              className="px-4 py-2.5 rounded-lg bg-emerald-600 active:bg-emerald-700 text-sm font-medium touch-manipulation"
             >
               Crear primera key
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-zinc-800">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-900 text-zinc-400 text-left">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Key</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">HWID</th>
-                  <th className="px-4 py-3 font-medium">Expires</th>
-                  <th className="px-4 py-3 font-medium">Note</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {licenses.map((lic) => (
-                  <tr key={lic.id} className="bg-zinc-950/50 hover:bg-zinc-900/40">
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => copy(lic.key)}
-                        className="font-mono text-emerald-400 hover:underline"
-                        title="Copiar"
-                      >
-                        {lic.key}
-                      </button>
-                      {lic.features && (
-                        <p className="text-xs text-zinc-500 mt-0.5">{lic.features}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-md border text-xs font-medium ${STATUS_STYLE[lic.status] || ''}`}
-                      >
-                        {lic.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-400 max-w-[120px] truncate">
-                      {lic.hwid || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-400 text-xs">
-                      {lic.expires_at
-                        ? new Date(lic.expires_at).toLocaleDateString()
-                        : 'Lifetime'}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500 text-xs max-w-[140px] truncate">
-                      {lic.note || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {lic.status !== 'active' && (
-                          <button
-                            disabled={busy === lic.id}
-                            onClick={() => patch(lic.id, { status: 'active' })}
-                            className="px-2 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs hover:bg-emerald-600/30"
-                          >
-                            Activate
-                          </button>
-                        )}
-                        {lic.status !== 'banned' && (
-                          <button
-                            disabled={busy === lic.id}
-                            onClick={() => patch(lic.id, { status: 'banned' })}
-                            className="px-2 py-1 rounded bg-red-600/20 text-red-400 text-xs hover:bg-red-600/30"
-                          >
-                            Ban
-                          </button>
-                        )}
-                        <button
-                          disabled={busy === lic.id}
-                          onClick={() => patch(lic.id, { reset_hwid: true })}
-                          className="px-2 py-1 rounded bg-zinc-700 text-zinc-300 text-xs hover:bg-zinc-600"
-                        >
-                          Reset HWID
-                        </button>
-                        <button
-                          disabled={busy === lic.id}
-                          onClick={() => {
-                            const d = prompt('Días a extender:', '30');
-                            if (d) patch(lic.id, { extend_days: Number(d) });
-                          }}
-                          className="px-2 py-1 rounded bg-zinc-700 text-zinc-300 text-xs hover:bg-zinc-600"
-                        >
-                          +Days
-                        </button>
-                        <button
-                          disabled={busy === lic.id}
-                          onClick={() => remove(lic.id)}
-                          className="px-2 py-1 rounded bg-red-900/40 text-red-400 text-xs hover:bg-red-900/60"
-                        >
-                          Delete
-                        </button>
+          <>
+            {/* Mobile: cards */}
+            <div className="md:hidden space-y-3">
+              {licenses.map((lic) => (
+                <div
+                  key={lic.id}
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <button
+                      onClick={() => copy(lic.key)}
+                      className="font-mono text-sm text-emerald-400 text-left break-all touch-manipulation"
+                      title="Copiar"
+                    >
+                      {lic.key}
+                    </button>
+                    <span
+                      className={`shrink-0 inline-block px-2 py-0.5 rounded-md border text-[10px] font-medium uppercase ${STATUS_STYLE[lic.status] || ''}`}
+                    >
+                      {lic.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-zinc-400 mb-3">
+                    <div>
+                      <span className="text-zinc-600">Expires</span>
+                      <p className="text-zinc-300">
+                        {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'Lifetime'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-zinc-600">Devices</span>
+                      <p className="text-zinc-300">{lic.max_devices || '∞'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-zinc-600">HWID</span>
+                      <p className="font-mono text-[11px] text-zinc-300 break-all">{lic.hwid || '—'}</p>
+                    </div>
+                    {lic.note && (
+                      <div className="col-span-2">
+                        <span className="text-zinc-600">Note</span>
+                        <p className="text-zinc-300">{lic.note}</p>
                       </div>
-                    </td>
+                    )}
+                    {lic.features && (
+                      <div className="col-span-2">
+                        <span className="text-zinc-600">Features</span>
+                        <p className="text-zinc-300">{lic.features}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <Actions lic={lic} />
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-zinc-800">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900 text-zinc-400 text-left">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Key</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">HWID</th>
+                    <th className="px-4 py-3 font-medium">Expires</th>
+                    <th className="px-4 py-3 font-medium">Note</th>
+                    <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {licenses.map((lic) => (
+                    <tr key={lic.id} className="bg-zinc-950/50 hover:bg-zinc-900/40">
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => copy(lic.key)}
+                          className="font-mono text-emerald-400 hover:underline"
+                          title="Copiar"
+                        >
+                          {lic.key}
+                        </button>
+                        {lic.features && (
+                          <p className="text-xs text-zinc-500 mt-0.5">{lic.features}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-md border text-xs font-medium ${STATUS_STYLE[lic.status] || ''}`}
+                        >
+                          {lic.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-zinc-400 max-w-[120px] truncate">
+                        {lic.hwid || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400 text-xs">
+                        {lic.expires_at
+                          ? new Date(lic.expires_at).toLocaleDateString()
+                          : 'Lifetime'}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 text-xs max-w-[140px] truncate">
+                        {lic.note || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Actions lic={lic} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </main>
 
-      {/* Create modal */}
+      {/* Create modal — full width on mobile */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70">
+          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-zinc-700 border-b-0 sm:border-b bg-zinc-900 p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4 sm:hidden" />
             <h2 className="text-lg font-semibold mb-4">Nueva License Key</h2>
 
             <label className="block text-xs text-zinc-400 mb-1">Key (vacío = auto)</label>
@@ -331,14 +449,14 @@ export default function DashboardPage() {
               value={customKey}
               onChange={(e) => setCustomKey(e.target.value)}
               placeholder="LYN8BP-XXXX-XXXX"
-              className="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm font-mono"
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm font-mono"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Game type</label>
             <input
               value={gameType}
               onChange={(e) => setGameType(e.target.value)}
-              className="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
@@ -347,15 +465,17 @@ export default function DashboardPage() {
               min={0}
               value={maxDevices}
               onChange={(e) => setMaxDevices(Number(e.target.value))}
-              className="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Expires (vacío = lifetime)</label>
             <input
               type="date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : '')}
-              className="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+              value={expiresAt ? expiresAt.slice(0, 10) : ''}
+              onChange={(e) =>
+                setExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : '')
+              }
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Features (separadas por coma)</label>
@@ -363,27 +483,27 @@ export default function DashboardPage() {
               value={features}
               onChange={(e) => setFeatures(e.target.value)}
               placeholder="aim,esp,speed"
-              className="w-full mb-3 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Note</label>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full mb-5 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end sticky bottom-0 bg-zinc-900 pt-1 pb-[env(safe-area-inset-bottom)]">
               <button
                 onClick={() => setShowCreate(false)}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm"
+                className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg bg-zinc-800 text-sm touch-manipulation"
               >
                 Cancelar
               </button>
               <button
                 disabled={busy === 'create'}
                 onClick={createKey}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium disabled:opacity-50"
+                className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg bg-emerald-600 text-sm font-medium disabled:opacity-50 touch-manipulation"
               >
                 {busy === 'create' ? 'Creando…' : 'Crear'}
               </button>

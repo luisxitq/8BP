@@ -6,10 +6,28 @@
   color-scheme: dark;
 }
 
-body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
-input, select, textarea, button {
+body {
+  @apply bg-zinc-950 text-zinc-100 antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+input,
+select,
+textarea,
+button {
   @apply outline-none;
+  font-size: 16px; /* evita zoom automático en iOS */
+}
+
+@media (min-width: 640px) {
+  input,
+  select,
+  textarea,
+  button {
+    font-size: inherit;
+  }
 }
