@@ -33,10 +33,38 @@ function shortId(hwid: string): string {
 function formatDate(iso: string | null): string {
   if (!iso) return 'Lifetime';
   try {
-    return new Date(iso).toISOString().slice(0, 10);
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day} ${h}:${min}`;
   } catch {
-    return iso.slice(0, 10);
+    return iso.slice(0, 16);
   }
+}
+
+/** ISO → value for <input type="datetime-local"> */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
+}
+
+/** datetime-local value → ISO string */
+function fromLocalInput(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 function CopyIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -136,7 +164,7 @@ export default function DashboardPage() {
           game_type: '8ball',
           max_devices: maxDevices,
           note,
-          expires_at: expiresAt || null,
+          expires_at: fromLocalInput(expiresAt),
           features: '',
         }),
       });
@@ -191,7 +219,7 @@ export default function DashboardPage() {
     setEditLic(lic);
     setEditKey(lic.key);
     setEditMaxDevices(lic.max_devices ?? 1);
-    setEditExpiresAt(lic.expires_at ? lic.expires_at.slice(0, 10) : '');
+    setEditExpiresAt(toLocalInput(lic.expires_at));
     setEditStatus(lic.status);
     setEditNote(lic.note || '');
   }
@@ -207,7 +235,7 @@ export default function DashboardPage() {
           edit: true,
           key: editKey.trim(),
           max_devices: editMaxDevices,
-          expires_at: editExpiresAt ? new Date(editExpiresAt).toISOString() : null,
+          expires_at: fromLocalInput(editExpiresAt),
           status: editStatus,
           note: editNote,
         }),
@@ -484,8 +512,13 @@ export default function DashboardPage() {
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Key Gratis V7" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
             <input type="number" min={0} value={maxDevices} onChange={(e) => setMaxDevices(Number(e.target.value))} className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
-            <label className="block text-xs text-zinc-400 mb-1">Expires (vacío = lifetime)</label>
-            <input type="date" value={expiresAt ? expiresAt.slice(0, 10) : ''} onChange={(e) => setExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : '')} className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
+            <label className="block text-xs text-zinc-400 mb-1">Expires (fecha y hora · vacío = lifetime)</label>
+            <input
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
+            />
             <div className="flex gap-2">
               <button onClick={() => setShowCreate(false)} className="flex-1 px-4 py-3 rounded-xl bg-zinc-800 text-sm touch-manipulation">Cancelar</button>
               <button disabled={busy === 'create'} onClick={createKey} className="flex-1 px-4 py-3 rounded-xl bg-emerald-600 text-sm font-medium disabled:opacity-50 touch-manipulation">
@@ -513,8 +546,13 @@ export default function DashboardPage() {
             </select>
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
             <input type="number" min={0} value={editMaxDevices} onChange={(e) => setEditMaxDevices(Number(e.target.value))} className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
-            <label className="block text-xs text-zinc-400 mb-1">Expires (vacío = lifetime)</label>
-            <input type="date" value={editExpiresAt} onChange={(e) => setEditExpiresAt(e.target.value)} className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
+            <label className="block text-xs text-zinc-400 mb-1">Expires (fecha y hora · vacío = lifetime)</label>
+            <input
+              type="datetime-local"
+              value={editExpiresAt}
+              onChange={(e) => setEditExpiresAt(e.target.value)}
+              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
+            />
             <div className="flex gap-2">
               <button onClick={() => setEditLic(null)} className="flex-1 px-4 py-3 rounded-xl bg-zinc-800 text-sm touch-manipulation">Cancelar</button>
               <button disabled={busy === editLic.id || !editKey.trim()} onClick={saveEdit} className="flex-1 px-4 py-3 rounded-xl bg-sky-600 text-sm font-medium disabled:opacity-50 touch-manipulation">
