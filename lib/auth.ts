@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
+import { ADMIN_USERNAME, ADMIN_PASSWORD, JWT_SECRET } from './config';
 
-const getSecret = () =>
-  new TextEncoder().encode(process.env.JWT_SECRET ?? 'fallback_secret_32chars_minimum!!');
+const getSecret = () => new TextEncoder().encode(JWT_SECRET);
 
 export async function signToken(username: string): Promise<string> {
   return new SignJWT({ username })
@@ -21,7 +21,5 @@ export async function verifyToken(token: string) {
 }
 
 export function checkAdminCredentials(username: string, password: string): boolean {
-  const adminUser = process.env.ADMIN_USERNAME ?? 'admin';
-  const adminPass = process.env.ADMIN_PASSWORD ?? 'change_me';
-  return username === adminUser && password === adminPass;
+  return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
 }

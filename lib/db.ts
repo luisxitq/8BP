@@ -1,39 +1,4 @@
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getDatabase, Database, Reference } from 'firebase-admin/database';
-
-let app: App;
-let rtdb: Database;
-
-function getDb(): Database {
-  if (!rtdb) {
-    if (!getApps().length) {
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-      if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-        throw new Error(
-          'Missing Firebase Admin credentials. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
-        );
-      }
-      app = initializeApp({
-        credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey,
-        }),
-        databaseURL:
-          process.env.FIREBASE_DATABASE_URL ||
-          'https://aimengine-62132-default-rtdb.firebaseio.com',
-      });
-    } else {
-      app = getApps()[0];
-    }
-    rtdb = getDatabase(app);
-  }
-  return rtdb;
-}
-
-function licensesRef(): Reference {
-  return getDb().ref('licenses');
-}
+import { RTDB_URL } from './config';
 
 export interface License {
   id: string;
@@ -49,69 +14,49 @@ export interface License {
   active_devices?: number;
 }
 
-/** Sanitize license key for use as RTDB path segment */
 function pathKey(key: string): string {
   return key.replace(/[.#$\[\]]/g, '_');
 }
 
-export async function initDB(): Promise<void> {
-  await getDb().ref('_meta/init').set({
-    initialized: true,
-    at: new Date().toISOString(),
-  });
+function licensesUrl(path = ''): string {
+  const base = `${RTDB_URL}/licenses`;
+  if (!path) return `${base}.json`;
+  return `${base}/${encodeURIComponent(path)}.json`;
 }
 
-export async function getAllLicenses(): Promise<License[]> {
-  const snap = await licensesRef().once('value');
-  const val = snap.val() || {};
-  const list: License[] = Object.entries(val).map(([id, raw]) => {
-    const data = raw as Record<string, unknown>;
-    return {
-      id,
-      key: String(data.key ?? id),
-      status: (data.status as License['status']) || 'active',
-      game_type: String(data.game_type ?? '8ball'),
-      max_devices: Number(data.max_devices ?? 1),
-      note: String(data.note ?? ''),
-      created_at: String(data.created_at ?? ''),
-      expires_at: data.expires_at ? String(data.expires_at) : null,
-      hwid: String(data.hwid ?? ''),
-      features: String(data.features ?? ''),
-      active_devices: data.hwid ? 1 : 0,
-    };
-  });
-  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-  return list;
+async function rtdbGet<T = unknown>(url: string): Promise<T | null> {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`RTDB GET ${res.status}: ${await res.text()}`);
+  return (await res.json()) as T | null;
 }
 
-export async function getLicenseByKey(key: string): Promise<License | null> {
-  const id = pathKey(key);
-  const snap = await licensesRef().child(id).once('value');
-  if (!snap.exists()) {
-    // Fallback: scan if stored under random push id
-    const all = await licensesRef().orderByChild('key').equalTo(key).limitToFirst(1).once('value');
-    if (!all.exists()) return null;
-    const entries = Object.entries(all.val() as Record<string, unknown>);
-    if (!entries.length) return null;
-    const [foundId, raw] = entries[0];
-    const data = raw as Record<string, unknown>;
-    return {
-      id: foundId,
-      key: String(data.key ?? key),
-      status: (data.status as License['status']) || 'active',
-      game_type: String(data.game_type ?? '8ball'),
-      max_devices: Number(data.max_devices ?? 1),
-      note: String(data.note ?? ''),
-      created_at: String(data.created_at ?? ''),
-      expires_at: data.expires_at ? String(data.expires_at) : null,
-      hwid: String(data.hwid ?? ''),
-      features: String(data.features ?? ''),
-    };
-  }
-  const data = snap.val() as Record<string, unknown>;
+async function rtdbPut(url: string, body: unknown): Promise<void> {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`RTDB PUT ${res.status}: ${await res.text()}`);
+}
+
+async function rtdbPatch(url: string, body: unknown): Promise<void> {
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`RTDB PATCH ${res.status}: ${await res.text()}`);
+}
+
+async function rtdbDelete(url: string): Promise<void> {
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`RTDB DELETE ${res.status}: ${await res.text()}`);
+}
+
+function mapLicense(id: string, data: Record<string, unknown>): License {
   return {
     id,
-    key: String(data.key ?? key),
+    key: String(data.key ?? id),
     status: (data.status as License['status']) || 'active',
     game_type: String(data.game_type ?? '8ball'),
     max_devices: Number(data.max_devices ?? 1),
@@ -120,7 +65,34 @@ export async function getLicenseByKey(key: string): Promise<License | null> {
     expires_at: data.expires_at ? String(data.expires_at) : null,
     hwid: String(data.hwid ?? ''),
     features: String(data.features ?? ''),
+    active_devices: data.hwid ? 1 : 0,
   };
+}
+
+export async function initDB(): Promise<void> {
+  await rtdbPut(`${RTDB_URL}/_meta/init.json`, {
+    initialized: true,
+    at: new Date().toISOString(),
+  });
+}
+
+export async function getAllLicenses(): Promise<License[]> {
+  const val = await rtdbGet<Record<string, Record<string, unknown>>>(licensesUrl());
+  if (!val || typeof val !== 'object') return [];
+  const list = Object.entries(val).map(([id, raw]) => mapLicense(id, raw || {}));
+  list.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return list;
+}
+
+export async function getLicenseByKey(key: string): Promise<License | null> {
+  const id = pathKey(key);
+  const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  if (data && typeof data === 'object' && (data.key || data.status)) {
+    return mapLicense(id, data);
+  }
+  // fallback scan
+  const all = await getAllLicenses();
+  return all.find((l) => l.key === key) ?? null;
 }
 
 export async function createLicense(data: {
@@ -146,30 +118,30 @@ export async function createLicense(data: {
     hwid: '',
     features: data.features,
   };
-  await licensesRef().child(id).set(doc);
+  await rtdbPut(licensesUrl(id), doc);
   return { id, ...doc };
 }
 
 export async function updateLicenseStatus(id: string, status: string): Promise<void> {
-  await licensesRef().child(id).update({ status });
+  await rtdbPatch(licensesUrl(id), { status });
 }
 
 export async function updateLicenseHwid(key: string, hwid: string): Promise<void> {
   const lic = await getLicenseByKey(key);
   if (!lic) return;
-  await licensesRef().child(lic.id).update({ hwid });
+  await rtdbPatch(licensesUrl(lic.id), { hwid });
 }
 
 export async function resetLicenseHwid(id: string): Promise<void> {
-  await licensesRef().child(id).update({ hwid: '' });
+  await rtdbPatch(licensesUrl(id), { hwid: '' });
 }
 
 export async function updateLicenseFeatures(id: string, features: string): Promise<void> {
-  await licensesRef().child(id).update({ features });
+  await rtdbPatch(licensesUrl(id), { features });
 }
 
 export async function deleteLicense(id: string): Promise<void> {
-  await licensesRef().child(id).remove();
+  await rtdbDelete(licensesUrl(id));
 }
 
 export async function getStats() {
@@ -189,16 +161,13 @@ export async function getStats() {
 }
 
 export async function extendLicense(id: string, days: number): Promise<void> {
-  const snap = await licensesRef().child(id).once('value');
-  if (!snap.exists()) return;
-  const data = snap.val() as Record<string, unknown>;
+  const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  if (!data) return;
   const now = new Date();
   let base = data.expires_at ? new Date(String(data.expires_at)) : now;
   if (base < now) base = now;
   base.setDate(base.getDate() + days);
-  const updates: Record<string, unknown> = {
-    expires_at: base.toISOString(),
-  };
+  const updates: Record<string, unknown> = { expires_at: base.toISOString() };
   if (data.status === 'expired') updates.status = 'active';
-  await licensesRef().child(id).update(updates);
+  await rtdbPatch(licensesUrl(id), updates);
 }

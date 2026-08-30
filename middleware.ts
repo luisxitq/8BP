@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { JWT_SECRET } from './lib/config';
 
 const PUBLIC_PATHS = ['/login', '/api/validate', '/api/setup', '/api/auth/login'];
 
@@ -10,13 +11,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const secret = new TextEncoder().encode(JWT_SECRET);
+
   if (pathname.startsWith('/api/')) {
     const token = req.cookies.get('kz_admin_token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? 'fallback');
       await jwtVerify(token, secret);
       return NextResponse.next();
     } catch {
@@ -29,7 +31,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? 'fallback');
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch {
