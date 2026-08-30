@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLicenseByKey, updateLicenseHwid } from '@/lib/db';
 import { decryptPayload, encryptPayload } from '@/lib/keygen';
-
-const ENCRYPT_KEY = process.env.ENCRYPT_KEY ?? 'JiM21rNU12eERlNmpqa3FuQks';
-const WS_TOKEN = process.env.WS_TOKEN ?? 'KJGMDKFJDHG34KD';
-const MOD_VERSION = process.env.MOD_VERSION ?? '1.0';
+import { ENCRYPT_KEY, WS_TOKEN, MOD_VERSION } from '@/lib/config';
 
 function fail(msg: string) {
   const payload = encryptPayload({ status: 'error', message: msg }, ENCRYPT_KEY);

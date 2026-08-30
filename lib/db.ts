@@ -171,3 +171,54 @@ export async function extendLicense(id: string, days: number): Promise<void> {
   if (data.status === 'expired') updates.status = 'active';
   await rtdbPatch(licensesUrl(id), updates);
 }
+
+/** Edit key / max_devices / expires_at / status. Returns new id if key path changed. */
+export async function updateLicense(
+  id: string,
+  fields: {
+    key?: string;
+    max_devices?: number;
+    expires_at?: string | null;
+    status?: string;
+  }
+): Promise<{ id: string }> {
+  const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  if (!data) throw new Error('License not found');
+
+  const newKey = fields.key !== undefined ? fields.key.trim() : String(data.key ?? id);
+  if (!newKey) throw new Error('Key cannot be empty');
+
+  const merged = {
+    key: newKey,
+    status: fields.status ?? data.status ?? 'active',
+    game_type: data.game_type ?? '8ball',
+    max_devices:
+      fields.max_devices !== undefined ? Number(fields.max_devices) : Number(data.max_devices ?? 1),
+    note: data.note ?? '',
+    created_at: data.created_at ?? new Date().toISOString(),
+    expires_at:
+      fields.expires_at !== undefined ? fields.expires_at : (data.expires_at ?? null),
+    hwid: data.hwid ?? '',
+    features: data.features ?? '',
+  };
+
+  const newId = pathKey(newKey);
+
+  if (newId !== id) {
+    const existing = await rtdbGet(licensesUrl(newId));
+    if (existing && typeof existing === 'object' && (existing as Record<string, unknown>).key) {
+      throw new Error('Key already exists');
+    }
+    await rtdbPut(licensesUrl(newId), merged);
+    await rtdbDelete(licensesUrl(id));
+    return { id: newId };
+  }
+
+  await rtdbPatch(licensesUrl(id), {
+    key: merged.key,
+    max_devices: merged.max_devices,
+    expires_at: merged.expires_at,
+    status: merged.status,
+  });
+  return { id };
+}

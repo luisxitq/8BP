@@ -5,6 +5,7 @@ import {
   extendLicense,
   resetLicenseHwid,
   updateLicenseFeatures,
+  updateLicense,
 } from '@/lib/db';
 
 export async function DELETE(
@@ -46,6 +47,22 @@ export async function PATCH(
       return NextResponse.json({ ok: true });
     }
 
+    // Full edit: key / max_devices / expires_at / status
+    if (body.edit === true || body.key !== undefined || body.max_devices !== undefined || body.expires_at !== undefined) {
+      const result = await updateLicense(id, {
+        key: typeof body.key === 'string' ? body.key : undefined,
+        max_devices: typeof body.max_devices === 'number' ? body.max_devices : undefined,
+        expires_at:
+          body.expires_at === null || body.expires_at === ''
+            ? null
+            : typeof body.expires_at === 'string'
+              ? body.expires_at
+              : undefined,
+        status: typeof body.status === 'string' ? body.status : undefined,
+      });
+      return NextResponse.json({ ok: true, id: result.id });
+    }
+
     if (typeof body.status === 'string') {
       if (!['active', 'banned', 'expired'].includes(body.status)) {
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -55,10 +72,14 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { error: 'Provide status, extend_days, features, or reset_hwid' },
+      { error: 'Provide status, extend_days, features, reset_hwid, or edit fields' },
       { status: 400 }
     );
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    const msg = String(e);
+    if (msg.includes('already exists')) {
+      return NextResponse.json({ error: 'Key already exists' }, { status: 409 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
