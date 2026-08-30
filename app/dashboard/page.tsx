@@ -33,6 +33,23 @@ const STATUS_STYLE: Record<string, string> = {
 const btnBase =
   'px-2.5 py-1.5 rounded-lg text-xs font-medium transition touch-manipulation disabled:opacity-40 active:scale-95';
 
+function CopyIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [licenses, setLicenses] = useState<License[]>([]);
@@ -40,15 +57,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editLic, setEditLic] = useState<License | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [customKey, setCustomKey] = useState('');
-  const [gameType, setGameType] = useState('8ball');
   const [maxDevices, setMaxDevices] = useState(1);
-  const [note, setNote] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [features, setFeatures] = useState('');
+
+  // edit form
+  const [editKey, setEditKey] = useState('');
+  const [editMaxDevices, setEditMaxDevices] = useState(1);
+  const [editExpiresAt, setEditExpiresAt] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'expired' | 'banned'>('active');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,23 +109,18 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           custom_key: customKey || undefined,
-          game_type: gameType,
+          game_type: '8ball',
           max_devices: maxDevices,
-          note,
+          note: '',
           expires_at: expiresAt || null,
-          features: features
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
+          features: '',
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error creating key');
       setShowCreate(false);
       setCustomKey('');
-      setNote('');
       setExpiresAt('');
-      setFeatures('');
       await load();
     } catch (e) {
       alert(String(e));
@@ -145,8 +162,76 @@ export default function DashboardPage() {
     }
   }
 
-  function copy(text: string) {
-    navigator.clipboard?.writeText(text).catch(() => {});
+  function openEdit(lic: License) {
+    setEditLic(lic);
+    setEditKey(lic.key);
+    setEditMaxDevices(lic.max_devices ?? 1);
+    setEditExpiresAt(lic.expires_at ? lic.expires_at.slice(0, 10) : '');
+    setEditStatus(lic.status);
+  }
+
+  async function saveEdit() {
+    if (!editLic) return;
+    setBusy(editLic.id);
+    try {
+      const res = await fetch(`/api/licenses/${encodeURIComponent(editLic.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          edit: true,
+          key: editKey.trim(),
+          max_devices: editMaxDevices,
+          expires_at: editExpiresAt ? new Date(editExpiresAt).toISOString() : null,
+          status: editStatus,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al editar');
+      setEditLic(null);
+      await load();
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copyKey(key: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(key);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = key;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  function KeyWithCopy({ lic }: { lic: License }) {
+    const isCopied = copiedId === lic.id;
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-sm text-emerald-400 truncate">{lic.key}</span>
+        <button
+          type="button"
+          onClick={() => copyKey(lic.key, lic.id)}
+          className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition touch-manipulation ${
+            isCopied
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              : 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white'
+          }`}
+          title="Copiar key"
+        >
+          {isCopied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
+          <span className="hidden xs:inline sm:inline">{isCopied ? 'Copied' : 'Copy'}</span>
+        </button>
+      </div>
+    );
   }
 
   function Actions({ lic }: { lic: License }) {
@@ -190,6 +275,13 @@ export default function DashboardPage() {
         </button>
         <button
           disabled={busy === id}
+          onClick={() => openEdit(lic)}
+          className={`${btnBase} bg-sky-600/20 text-sky-400`}
+        >
+          Edit
+        </button>
+        <button
+          disabled={busy === id}
           onClick={() => remove(id)}
           className={`${btnBase} bg-red-900/40 text-red-400`}
         >
@@ -201,7 +293,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-[100dvh] bg-zinc-950 pb-8">
-      {/* Header */}
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -210,11 +301,10 @@ export default function DashboardPage() {
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold leading-tight text-sm sm:text-base truncate">License Panel</h1>
-              <p className="text-[10px] sm:text-xs text-zinc-500 hidden xs:block sm:block">Firebase · Aim Engine</p>
+              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">Firebase · Aim Engine</p>
             </div>
           </div>
 
-          {/* Desktop actions */}
           <div className="hidden sm:flex items-center gap-2">
             <button
               onClick={() => setShowCreate(true)}
@@ -236,7 +326,6 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Mobile: create + menu */}
           <div className="flex sm:hidden items-center gap-1.5">
             <button
               onClick={() => setShowCreate(true)}
@@ -285,7 +374,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
           {[
             { label: 'Total', value: stats.total, color: 'text-zinc-100' },
@@ -323,21 +411,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Mobile: cards */}
+            {/* Mobile cards */}
             <div className="md:hidden space-y-3">
               {licenses.map((lic) => (
-                <div
-                  key={lic.id}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <button
-                      onClick={() => copy(lic.key)}
-                      className="font-mono text-sm text-emerald-400 text-left break-all touch-manipulation"
-                      title="Copiar"
-                    >
-                      {lic.key}
-                    </button>
+                <div key={lic.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3.5">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <KeyWithCopy lic={lic} />
                     <span
                       className={`shrink-0 inline-block px-2 py-0.5 rounded-md border text-[10px] font-medium uppercase ${STATUS_STYLE[lic.status] || ''}`}
                     >
@@ -360,18 +439,6 @@ export default function DashboardPage() {
                       <span className="text-zinc-600">HWID</span>
                       <p className="font-mono text-[11px] text-zinc-300 break-all">{lic.hwid || '—'}</p>
                     </div>
-                    {lic.note && (
-                      <div className="col-span-2">
-                        <span className="text-zinc-600">Note</span>
-                        <p className="text-zinc-300">{lic.note}</p>
-                      </div>
-                    )}
-                    {lic.features && (
-                      <div className="col-span-2">
-                        <span className="text-zinc-600">Features</span>
-                        <p className="text-zinc-300">{lic.features}</p>
-                      </div>
-                    )}
                   </div>
 
                   <Actions lic={lic} />
@@ -379,7 +446,7 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Desktop: table */}
+            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto rounded-xl border border-zinc-800">
               <table className="w-full text-sm">
                 <thead className="bg-zinc-900 text-zinc-400 text-left">
@@ -388,7 +455,7 @@ export default function DashboardPage() {
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">HWID</th>
                     <th className="px-4 py-3 font-medium">Expires</th>
-                    <th className="px-4 py-3 font-medium">Note</th>
+                    <th className="px-4 py-3 font-medium">Devices</th>
                     <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -396,16 +463,7 @@ export default function DashboardPage() {
                   {licenses.map((lic) => (
                     <tr key={lic.id} className="bg-zinc-950/50 hover:bg-zinc-900/40">
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => copy(lic.key)}
-                          className="font-mono text-emerald-400 hover:underline"
-                          title="Copiar"
-                        >
-                          {lic.key}
-                        </button>
-                        {lic.features && (
-                          <p className="text-xs text-zinc-500 mt-0.5">{lic.features}</p>
-                        )}
+                        <KeyWithCopy lic={lic} />
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -414,7 +472,7 @@ export default function DashboardPage() {
                           {lic.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-zinc-400 max-w-[120px] truncate">
+                      <td className="px-4 py-3 font-mono text-xs text-zinc-400 max-w-[140px] truncate">
                         {lic.hwid || '—'}
                       </td>
                       <td className="px-4 py-3 text-zinc-400 text-xs">
@@ -422,8 +480,8 @@ export default function DashboardPage() {
                           ? new Date(lic.expires_at).toLocaleDateString()
                           : 'Lifetime'}
                       </td>
-                      <td className="px-4 py-3 text-zinc-500 text-xs max-w-[140px] truncate">
-                        {lic.note || '—'}
+                      <td className="px-4 py-3 text-zinc-400 text-xs">
+                        {lic.max_devices || '∞'}
                       </td>
                       <td className="px-4 py-3">
                         <Actions lic={lic} />
@@ -437,7 +495,6 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Create modal — full width on mobile */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70">
           <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-zinc-700 border-b-0 sm:border-b bg-zinc-900 p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
@@ -450,13 +507,6 @@ export default function DashboardPage() {
               onChange={(e) => setCustomKey(e.target.value)}
               placeholder="LYN8BP-XXXX-XXXX"
               className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm font-mono"
-            />
-
-            <label className="block text-xs text-zinc-400 mb-1">Game type</label>
-            <input
-              value={gameType}
-              onChange={(e) => setGameType(e.target.value)}
-              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
@@ -475,21 +525,6 @@ export default function DashboardPage() {
               onChange={(e) =>
                 setExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : '')
               }
-              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
-            />
-
-            <label className="block text-xs text-zinc-400 mb-1">Features (separadas por coma)</label>
-            <input
-              value={features}
-              onChange={(e) => setFeatures(e.target.value)}
-              placeholder="aim,esp,speed"
-              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
-            />
-
-            <label className="block text-xs text-zinc-400 mb-1">Note</label>
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
               className="w-full mb-5 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
             />
 
@@ -506,6 +541,67 @@ export default function DashboardPage() {
                 className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg bg-emerald-600 text-sm font-medium disabled:opacity-50 touch-manipulation"
               >
                 {busy === 'create' ? 'Creando…' : 'Crear'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editLic && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70">
+          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-zinc-700 border-b-0 sm:border-b bg-zinc-900 p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4 sm:hidden" />
+            <h2 className="text-lg font-semibold mb-4">Editar License Key</h2>
+
+            <label className="block text-xs text-zinc-400 mb-1">Key</label>
+            <input
+              value={editKey}
+              onChange={(e) => setEditKey(e.target.value)}
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm font-mono"
+            />
+
+            <label className="block text-xs text-zinc-400 mb-1">Status</label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value as 'active' | 'expired' | 'banned')}
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+            >
+              <option value="active">active</option>
+              <option value="expired">expired</option>
+              <option value="banned">banned</option>
+            </select>
+
+            <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
+            <input
+              type="number"
+              min={0}
+              value={editMaxDevices}
+              onChange={(e) => setEditMaxDevices(Number(e.target.value))}
+              className="w-full mb-3 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+            />
+
+            <label className="block text-xs text-zinc-400 mb-1">Expires (vacío = lifetime)</label>
+            <input
+              type="date"
+              value={editExpiresAt}
+              onChange={(e) => setEditExpiresAt(e.target.value)}
+              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-sm"
+            />
+
+            <div className="flex gap-2 justify-end sticky bottom-0 bg-zinc-900 pt-1 pb-[env(safe-area-inset-bottom)]">
+              <button
+                onClick={() => setEditLic(null)}
+                className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg bg-zinc-800 text-sm touch-manipulation"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={busy === editLic.id || !editKey.trim()}
+                onClick={saveEdit}
+                className="flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-lg bg-sky-600 text-sm font-medium disabled:opacity-50 touch-manipulation"
+              >
+                {busy === editLic.id ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </div>
