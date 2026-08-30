@@ -9,7 +9,8 @@ export interface License {
   note: string;
   created_at: string;
   expires_at: string | null;
-  hwid: string;
+  hwid: string; // legacy single
+  devices: string[];
   features: string;
   active_devices?: number;
 }
@@ -53,19 +54,43 @@ async function rtdbDelete(url: string): Promise<void> {
   if (!res.ok) throw new Error(`RTDB DELETE ${res.status}: ${await res.text()}`);
 }
 
+function parseDevices(data: Record<string, unknown>): string[] {
+  if (Array.isArray(data.devices)) {
+    return data.devices.map(String).filter(Boolean);
+  }
+  // legacy: single hwid string
+  const h = String(data.hwid ?? '');
+  if (h) return [h];
+  return [];
+}
+
+function resolveStatus(
+  raw: string | undefined,
+  expiresAt: string | null
+): License['status'] {
+  const base = (raw as License['status']) || 'active';
+  if (base === 'banned') return 'banned';
+  if (expiresAt && new Date(expiresAt) < new Date()) return 'expired';
+  if (base === 'expired') return 'expired';
+  return 'active';
+}
+
 function mapLicense(id: string, data: Record<string, unknown>): License {
+  const devices = parseDevices(data);
+  const expires_at = data.expires_at ? String(data.expires_at) : null;
   return {
     id,
     key: String(data.key ?? id),
-    status: (data.status as License['status']) || 'active',
+    status: resolveStatus(String(data.status ?? 'active'), expires_at),
     game_type: String(data.game_type ?? '8ball'),
     max_devices: Number(data.max_devices ?? 1),
     note: String(data.note ?? ''),
     created_at: String(data.created_at ?? ''),
-    expires_at: data.expires_at ? String(data.expires_at) : null,
-    hwid: String(data.hwid ?? ''),
+    expires_at,
+    hwid: devices[0] ?? '',
+    devices,
     features: String(data.features ?? ''),
-    active_devices: data.hwid ? 1 : 0,
+    active_devices: devices.length,
   };
 }
 
@@ -90,7 +115,6 @@ export async function getLicenseByKey(key: string): Promise<License | null> {
   if (data && typeof data === 'object' && (data.key || data.status)) {
     return mapLicense(id, data);
   }
-  // fallback scan
   const all = await getAllLicenses();
   return all.find((l) => l.key === key) ?? null;
 }
@@ -116,24 +140,60 @@ export async function createLicense(data: {
     created_at: new Date().toISOString(),
     expires_at: data.expires_at,
     hwid: '',
+    devices: [] as string[],
     features: data.features,
   };
   await rtdbPut(licensesUrl(id), doc);
-  return { id, ...doc };
+  return { id, ...doc, active_devices: 0 };
 }
 
 export async function updateLicenseStatus(id: string, status: string): Promise<void> {
   await rtdbPatch(licensesUrl(id), { status });
 }
 
-export async function updateLicenseHwid(key: string, hwid: string): Promise<void> {
+/** Add device HWID if under limit. Returns updated device list length. */
+export async function registerDevice(
+  key: string,
+  hwid: string
+): Promise<{ devices: string[]; active: number; max: number }> {
   const lic = await getLicenseByKey(key);
-  if (!lic) return;
-  await rtdbPatch(licensesUrl(lic.id), { hwid });
+  if (!lic) throw new Error('License not found');
+
+  const devices = [...(lic.devices || [])];
+  const max = lic.max_devices;
+
+  if (devices.includes(hwid)) {
+    return { devices, active: devices.length, max };
+  }
+
+  if (max > 0 && devices.length >= max) {
+    throw new Error('Device limit reached');
+  }
+
+  devices.push(hwid);
+  await rtdbPatch(licensesUrl(lic.id), {
+    devices,
+    hwid: devices[0] || '',
+  });
+  return { devices, active: devices.length, max };
+}
+
+export async function updateLicenseHwid(key: string, hwid: string): Promise<void> {
+  await registerDevice(key, hwid);
 }
 
 export async function resetLicenseHwid(id: string): Promise<void> {
-  await rtdbPatch(licensesUrl(id), { hwid: '' });
+  await rtdbPatch(licensesUrl(id), { hwid: '', devices: [] });
+}
+
+export async function removeDevice(id: string, hwid: string): Promise<void> {
+  const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  if (!data) return;
+  const devices = parseDevices(data).filter((d) => d !== hwid);
+  await rtdbPatch(licensesUrl(id), {
+    devices,
+    hwid: devices[0] || '',
+  });
 }
 
 export async function updateLicenseFeatures(id: string, features: string): Promise<void> {
@@ -172,7 +232,6 @@ export async function extendLicense(id: string, days: number): Promise<void> {
   await rtdbPatch(licensesUrl(id), updates);
 }
 
-/** Edit key / max_devices / expires_at / status. Returns new id if key path changed. */
 export async function updateLicense(
   id: string,
   fields: {
@@ -180,6 +239,7 @@ export async function updateLicense(
     max_devices?: number;
     expires_at?: string | null;
     status?: string;
+    note?: string;
   }
 ): Promise<{ id: string }> {
   const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
@@ -188,17 +248,19 @@ export async function updateLicense(
   const newKey = fields.key !== undefined ? fields.key.trim() : String(data.key ?? id);
   if (!newKey) throw new Error('Key cannot be empty');
 
+  const devices = parseDevices(data);
   const merged = {
     key: newKey,
     status: fields.status ?? data.status ?? 'active',
     game_type: data.game_type ?? '8ball',
     max_devices:
       fields.max_devices !== undefined ? Number(fields.max_devices) : Number(data.max_devices ?? 1),
-    note: data.note ?? '',
+    note: fields.note !== undefined ? fields.note : (data.note ?? ''),
     created_at: data.created_at ?? new Date().toISOString(),
     expires_at:
       fields.expires_at !== undefined ? fields.expires_at : (data.expires_at ?? null),
-    hwid: data.hwid ?? '',
+    hwid: devices[0] || '',
+    devices,
     features: data.features ?? '',
   };
 
@@ -219,6 +281,7 @@ export async function updateLicense(
     max_devices: merged.max_devices,
     expires_at: merged.expires_at,
     status: merged.status,
+    note: merged.note,
   });
   return { id };
 }
