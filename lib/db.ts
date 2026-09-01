@@ -68,11 +68,13 @@ function resolveStatus(
   raw: string | undefined,
   expiresAt: string | null
 ): License['status'] {
-  const base = (raw as License['status']) || 'active';
-  if (base === 'banned') return 'banned';
+  // Banned siempre gana
+  if (raw === 'banned') return 'banned';
+  // Si la fecha/hora de expiración ya pasó → expired
   if (expiresAt && new Date(expiresAt) < new Date()) return 'expired';
-  if (base === 'expired') return 'expired';
-  return 'active';
+  // Fecha futura o lifetime: si estaba "expired" por fecha vieja, se considera active
+  if (raw === 'expired') return 'active';
+  return (raw as License['status']) || 'active';
 }
 
 function mapLicense(id: string, data: Record<string, unknown>): License {
@@ -249,16 +251,26 @@ export async function updateLicense(
   if (!newKey) throw new Error('Key cannot be empty');
 
   const devices = parseDevices(data);
+  const expires_at =
+    fields.expires_at !== undefined ? fields.expires_at : (data.expires_at ?? null);
+  let status = String(fields.status ?? data.status ?? 'active');
+  // Si la fecha es futura (o lifetime) y no está banned, reactivar
+  if (status !== 'banned') {
+    if (!expires_at || new Date(String(expires_at)) >= new Date()) {
+      if (status === 'expired') status = 'active';
+    } else {
+      status = 'expired';
+    }
+  }
   const merged = {
     key: newKey,
-    status: fields.status ?? data.status ?? 'active',
+    status,
     game_type: data.game_type ?? '8ball',
     max_devices:
       fields.max_devices !== undefined ? Number(fields.max_devices) : Number(data.max_devices ?? 1),
     note: fields.note !== undefined ? fields.note : (data.note ?? ''),
     created_at: data.created_at ?? new Date().toISOString(),
-    expires_at:
-      fields.expires_at !== undefined ? fields.expires_at : (data.expires_at ?? null),
+    expires_at,
     hwid: devices[0] || '',
     devices,
     features: data.features ?? '',
