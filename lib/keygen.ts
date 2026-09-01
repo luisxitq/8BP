@@ -5,7 +5,7 @@ function segment(len = 4): string {
 }
 
 export function generateKey(): string {
-  return `LYN8BP-${segment(4)}-${segment(4)}`;
+  return `ITACHI-${segment(4)}-${segment(4)}`;
 }
 
 export function xorEncrypt(data: string, key: string): string {
