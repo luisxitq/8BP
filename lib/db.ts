@@ -190,11 +190,26 @@ export async function resetLicenseHwid(id: string): Promise<void> {
 
 export async function removeDevice(id: string, hwid: string): Promise<void> {
   const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
-  if (!data) return;
-  const devices = parseDevices(data).filter((d) => d !== hwid);
+  if (!data) throw new Error('License not found');
+  const target = String(hwid).trim();
+  const prev = parseDevices(data);
+  const finalDevices = prev.filter((d) => d !== target);
+  if (finalDevices.length === prev.length) {
+    // try match by last 8 chars (UI short id)
+    const short = target.slice(-8);
+    const filtered = prev.filter((d) => d.slice(-8) !== short && d !== target);
+    if (filtered.length === prev.length) {
+      throw new Error('Device not found on this license');
+    }
+    await rtdbPatch(licensesUrl(id), {
+      devices: filtered,
+      hwid: filtered[0] || '',
+    });
+    return;
+  }
   await rtdbPatch(licensesUrl(id), {
-    devices,
-    hwid: devices[0] || '',
+    devices: finalDevices,
+    hwid: finalDevices[0] || '',
   });
 }
 
