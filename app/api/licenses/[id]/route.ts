@@ -6,6 +6,7 @@ import {
   resetLicenseHwid,
   updateLicenseFeatures,
   updateLicense,
+  removeDevice,
 } from '@/lib/db';
 
 export async function DELETE(
@@ -13,7 +14,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await deleteLicense(params.id);
+    const id = decodeURIComponent(params.id);
+    await deleteLicense(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -26,8 +28,15 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
-    const id = params.id;
+    const id = decodeURIComponent(params.id);
 
+    // Quitar un HWID concreto
+    if (body.remove_device != null && String(body.remove_device).trim() !== '') {
+      await removeDevice(id, String(body.remove_device).trim());
+      return NextResponse.json({ ok: true });
+    }
+
+    // Resetear todos los devices
     if (body.reset_hwid === true) {
       await resetLicenseHwid(id);
       return NextResponse.json({ ok: true });
@@ -47,8 +56,14 @@ export async function PATCH(
       return NextResponse.json({ ok: true });
     }
 
-    // Full edit: key / max_devices / expires_at / status
-    if (body.edit === true || body.key !== undefined || body.max_devices !== undefined || body.expires_at !== undefined) {
+    // Full edit: key / max_devices / expires_at / status / note
+    if (
+      body.edit === true ||
+      body.key !== undefined ||
+      body.max_devices !== undefined ||
+      body.expires_at !== undefined ||
+      body.note !== undefined
+    ) {
       const result = await updateLicense(id, {
         key: typeof body.key === 'string' ? body.key : undefined,
         max_devices: typeof body.max_devices === 'number' ? body.max_devices : undefined,
@@ -59,6 +74,7 @@ export async function PATCH(
               ? body.expires_at
               : undefined,
         status: typeof body.status === 'string' ? body.status : undefined,
+        note: typeof body.note === 'string' ? body.note : undefined,
       });
       return NextResponse.json({ ok: true, id: result.id });
     }
@@ -72,7 +88,10 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { error: 'Provide status, extend_days, features, reset_hwid, or edit fields' },
+      {
+        error:
+          'Provide status, extend_days, features, reset_hwid, remove_device, or edit fields',
+      },
       { status: 400 }
     );
   } catch (e) {
