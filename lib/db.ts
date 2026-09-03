@@ -55,13 +55,59 @@ async function rtdbDelete(url: string): Promise<void> {
 }
 
 function parseDevices(data: Record<string, unknown>): string[] {
-  if (Array.isArray(data.devices)) {
-    return data.devices.map(String).filter(Boolean);
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const add = (v: unknown) => {
+    const s = String(v ?? '').trim();
+    if (!s || seen.has(s)) return;
+    seen.add(s);
+    out.push(s);
+  };
+
+  const raw = data.devices;
+
+  if (Array.isArray(raw)) {
+    for (const v of raw) {
+      if (v && typeof v === 'object' && 'hwid' in (v as object)) {
+        add((v as { hwid: unknown }).hwid);
+      } else {
+        add(v);
+      }
+    }
+  } else if (raw && typeof raw === 'object') {
+    // RTDB: { "0": "hwidA", "1": "hwidB" } OR { "hwidA": true }
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.length > 0) {
+        add(v);
+      } else if (v && typeof v === 'object' && 'hwid' in (v as object)) {
+        add((v as { hwid: unknown }).hwid);
+      } else if (v === true || v === 1) {
+        if (!/^\d+$/.test(k)) add(k);
+      } else if (v !== false && v != null && typeof v !== 'object') {
+        add(v);
+      } else if ((v === true || v === 1 || v === false || v == null) && !/^\d+$/.test(k)) {
+        add(k);
+      }
+    }
   }
-  // legacy: single hwid string
-  const h = String(data.hwid ?? '');
-  if (h) return [h];
-  return [];
+
+  if (out.length === 0) {
+    add(data.hwid);
+  }
+
+  return out;
+}
+
+
+/** Store devices as map { [hwid]: true } — more reliable in Firebase RTDB than arrays */
+function devicesToMap(list: string[]): Record<string, boolean> {
+  const m: Record<string, boolean> = {};
+  for (const d of list) {
+    const s = String(d || '').trim();
+    if (s) m[s] = true;
+  }
+  return m;
 }
 
 function resolveStatus(
@@ -142,11 +188,11 @@ export async function createLicense(data: {
     created_at: new Date().toISOString(),
     expires_at: data.expires_at,
     hwid: '',
-    devices: [] as string[],
+    devices: {} as Record<string, boolean>,
     features: data.features,
   };
   await rtdbPut(licensesUrl(id), doc);
-  return { id, ...doc, active_devices: 0 };
+  return { id, ...doc, devices: [], active_devices: 0 };
 }
 
 export async function updateLicenseStatus(id: string, status: string): Promise<void> {
@@ -172,9 +218,9 @@ export async function registerDevice(
     throw new Error('Device limit reached');
   }
 
-  devices.push(hwid);
+  devices.push(String(hwid).trim());
   await rtdbPatch(licensesUrl(lic.id), {
-    devices,
+    devices: devicesToMap(devices),
     hwid: devices[0] || '',
   });
   return { devices, active: devices.length, max };
@@ -185,7 +231,7 @@ export async function updateLicenseHwid(key: string, hwid: string): Promise<void
 }
 
 export async function resetLicenseHwid(id: string): Promise<void> {
-  await rtdbPatch(licensesUrl(id), { hwid: '', devices: [] });
+  await rtdbPatch(licensesUrl(id), { hwid: '', devices: {} });
 }
 
 export async function removeDevice(id: string, hwid: string): Promise<void> {
@@ -202,13 +248,13 @@ export async function removeDevice(id: string, hwid: string): Promise<void> {
       throw new Error('Device not found on this license');
     }
     await rtdbPatch(licensesUrl(id), {
-      devices: filtered,
+      devices: devicesToMap(filtered),
       hwid: filtered[0] || '',
     });
     return;
   }
   await rtdbPatch(licensesUrl(id), {
-    devices: finalDevices,
+    devices: devicesToMap(finalDevices),
     hwid: finalDevices[0] || '',
   });
 }
