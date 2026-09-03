@@ -521,7 +521,7 @@ export default function DashboardPage() {
             <label className="block text-xs text-zinc-400 mb-1">Key (vacío = auto)</label>
             <input value={customKey} onChange={(e) => setCustomKey(e.target.value)} placeholder="LYN8BP-XXXX-XXXX" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm font-mono" />
             <label className="block text-xs text-zinc-400 mb-1">Note / label</label>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Key Gratis V7" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
             <input type="number" min={0} value={maxDevices} onChange={(e) => setMaxDevices(Number(e.target.value))} className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Expires (fecha y hora · vacío = lifetime)</label>
