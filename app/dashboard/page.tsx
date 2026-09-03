@@ -340,9 +340,21 @@ export default function DashboardPage() {
                 type="button"
                 disabled={isBusy}
                 title={`${d} — click to remove`}
-                onClick={() => {
-                  if (confirm(`¿Quitar device ${shortId(d)}?`)) {
-                    patch(lic.id, { remove_device: d });
+                onClick={async () => {
+                  if (!confirm(`¿Quitar device ${shortId(d)}?`)) return;
+                  setBusy(lic.id);
+                  try {
+                    const res = await fetch(
+                      `/api/licenses/${encodeURIComponent(lic.id)}/device?hwid=${encodeURIComponent(d)}`,
+                      { method: 'DELETE' }
+                    );
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || res.statusText || 'Error');
+                    await load();
+                  } catch (e) {
+                    alert(String(e));
+                  } finally {
+                    setBusy(null);
                   }
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 border border-zinc-700/80 text-[11px] font-mono text-sky-400 hover:border-red-500/50 hover:text-red-300 transition touch-manipulation"
@@ -507,7 +519,7 @@ export default function DashboardPage() {
             <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4 sm:hidden" />
             <h2 className="text-lg font-semibold mb-4">Nueva License Key</h2>
             <label className="block text-xs text-zinc-400 mb-1">Key (vacío = auto)</label>
-            <input value={customKey} onChange={(e) => setCustomKey(e.target.value)} placeholder="ITACHI-XXXX-XXXX" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm font-mono" />
+            <input value={customKey} onChange={(e) => setCustomKey(e.target.value)} placeholder="LYN8BP-XXXX-XXXX" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm font-mono" />
             <label className="block text-xs text-zinc-400 mb-1">Note / label</label>
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Key Gratis V7" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
