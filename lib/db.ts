@@ -69,7 +69,7 @@ function parseDevices(data: Record<string, unknown>): string[] {
 
   if (Array.isArray(raw)) {
     for (const v of raw) {
-      if (v && typeof v === 'object' && 'hwid' in (v as object)) {
+      if (v && typeof v === 'object' && v !== null && 'hwid' in v) {
         add((v as { hwid: unknown }).hwid);
       } else {
         add(v);
@@ -80,14 +80,16 @@ function parseDevices(data: Record<string, unknown>): string[] {
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
       if (typeof v === 'string' && v.length > 0) {
         add(v);
-      } else if (v && typeof v === 'object' && 'hwid' in (v as object)) {
+      } else if (v && typeof v === 'object' && 'hwid' in v) {
         add((v as { hwid: unknown }).hwid);
       } else if (v === true || v === 1) {
+        // key is the hwid
         if (!/^\d+$/.test(k)) add(k);
-      } else if (v !== false && v != null && typeof v !== 'object') {
+      } else if (typeof v === 'number' || typeof v === 'boolean') {
+        // skip numeric indices with false/0; keys that look like hwid
+        if (!/^\d+$/.test(k)) add(k);
+      } else if (v != null && typeof v !== 'object') {
         add(v);
-      } else if ((v === true || v === 1 || v === false || v == null) && !/^\d+$/.test(k)) {
-        add(k);
       }
     }
   }
@@ -99,8 +101,6 @@ function parseDevices(data: Record<string, unknown>): string[] {
   return out;
 }
 
-
-/** Store devices as map { [hwid]: true } — more reliable in Firebase RTDB than arrays */
 function devicesToMap(list: string[]): Record<string, boolean> {
   const m: Record<string, boolean> = {};
   for (const d of list) {
