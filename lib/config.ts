@@ -5,7 +5,7 @@ export const ADMIN_PASSWORD = 'admin';
 
 export const JWT_SECRET = '8bp_aimengine_jwt_secret_key_32chars!!';
 
-export const MOD_VERSION = '1.0';
+export const MOD_VERSION = '1.1';
 export const ENCRYPT_KEY = 'JiM21rNU12eERlNmpqa3FuQks';
 export const WS_TOKEN = 'KJGMDKFJDHG34KD';
 
