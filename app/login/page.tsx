@@ -35,11 +35,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 bg-gradient-to-br from-zinc-950 via-zinc-900 to-emerald-950">
+    <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 bg-gradient-to-br from-zinc-950 via-zinc-900 to-red-950">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 mb-3 sm:mb-4">
-            <span className="text-xl sm:text-2xl font-bold text-emerald-400">8BP</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-red-500/20 border border-red-500/30 mb-3 sm:mb-4">
+            <span className="text-xl sm:text-2xl font-bold text-red-400">8BP</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">License Panel</h1>
           <p className="text-zinc-400 text-sm mt-1">Aim Engine · Admin</p>
@@ -60,7 +60,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full mb-4 px-3 py-3 sm:py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 focus:border-emerald-500 transition"
+            className="w-full mb-4 px-3 py-3 sm:py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 focus:border-red-500 transition"
             autoComplete="username"
             inputMode="text"
             required
@@ -71,7 +71,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full mb-6 px-3 py-3 sm:py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 focus:border-emerald-500 transition"
+            className="w-full mb-6 px-3 py-3 sm:py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 focus:border-red-500 transition"
             autoComplete="current-password"
             required
           />
@@ -79,7 +79,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 font-semibold transition touch-manipulation"
+            className="w-full py-3 sm:py-2.5 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:opacity-50 font-semibold transition touch-manipulation"
           >
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
