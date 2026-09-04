@@ -124,8 +124,20 @@ function parseDevices(data: Record<string, unknown>): string[] {
     }
   }
 
-  // Always merge legacy single hwid field (may hold a 2nd device on old data)
+  // Always merge legacy single hwid field
   add(data.hwid);
+
+  // Also merge validation log (hwids that hit /api/validate)
+  const log = data.device_log;
+  if (log && typeof log === 'object' && !Array.isArray(log)) {
+    for (const entry of Object.values(log as Record<string, unknown>)) {
+      if (entry && typeof entry === 'object' && entry !== null && 'hwid' in entry) {
+        add((entry as { hwid: unknown }).hwid);
+      } else if (typeof entry === 'string') {
+        add(entry);
+      }
+    }
+  }
 
   return out;
 }
@@ -240,28 +252,55 @@ export async function registerDevice(
   const trimmed = String(hwid).trim();
   if (!trimmed) throw new Error('Missing HWID');
 
-  // Re-read devices node directly (source of truth)
-  const rawDevices = await rtdbGet<unknown>(devicesNodeUrl(id));
-  let devices = parseDevices({ devices: rawDevices, hwid: lic.hwid } as Record<string, unknown>);
+  const max = lic.max_devices;
 
-  if (devices.includes(trimmed)) {
-    return { devices, active: devices.length, max: lic.max_devices };
+  // Log every validate hit
+  const logId = `${Date.now()}_${pathKey(trimmed).slice(0, 16)}`;
+  try {
+    await rtdbPut(
+      `${RTDB_URL}/licenses/${encodeURIComponent(id)}/device_log/${encodeURIComponent(logId)}.json`,
+      { hwid: trimmed, at: new Date().toISOString() }
+    );
+  } catch {
+    /* ignore */
   }
 
-  const max = lic.max_devices;
+  // Read current
+  const full = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  let devices = parseDevices(full || { hwid: lic.hwid });
+
+  if (devices.includes(trimmed)) {
+    return { devices, active: devices.length, max };
+  }
+
   if (max > 0 && devices.length >= max) {
     throw new Error('Device limit reached');
   }
 
-  // Atomic write of THIS device only (does not overwrite siblings)
-  await rtdbPut(deviceChildUrl(id, trimmed), trimmed);
+  // Write under TWO possible child keys so nothing is lost
+  const k1 = pathKey(trimmed);
+  const k2 = deviceSafeKey(trimmed);
+  await rtdbPut(
+    `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(k1)}.json`,
+    trimmed
+  );
+  if (k2 !== k1) {
+    await rtdbPut(
+      `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(k2)}.json`,
+      trimmed
+    );
+  }
 
-  // Optional legacy field (first device)
-  if (devices.length === 0) {
+  // Re-read full license
+  const full2 = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  devices = parseDevices(full2 || {});
+  if (!devices.includes(trimmed)) devices = [...devices, trimmed];
+
+  // Keep legacy field as first seen (don't overwrite if set)
+  if (!lic.hwid) {
     await rtdbPatch(licensesUrl(id), { hwid: trimmed });
   }
 
-  devices = [...devices, trimmed];
   return { devices, active: devices.length, max };
 }
 
