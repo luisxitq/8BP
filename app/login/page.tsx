@@ -42,7 +42,7 @@ export default function LoginPage() {
             <span className="text-xl sm:text-2xl font-bold text-emerald-400">8BP</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">License Panel</h1>
-          <p className="text-zinc-400 text-sm mt-1">Aim Engine · Admin</p>
+          <p className="text-zinc-400 text-sm mt-1"> Engine · Admin</p>
         </div>
 
         <form

@@ -440,7 +440,7 @@ export default function DashboardPage() {
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold leading-tight text-sm sm:text-base truncate">License Panel</h1>
-              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">Aim Engine</p>
+              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">Itachi Engine</p>
             </div>
           </div>
 
