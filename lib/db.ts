@@ -25,33 +25,6 @@ function licensesUrl(path = ''): string {
   return `${base}/${encodeURIComponent(path)}.json`;
 }
 
-/** Safe Firebase key for a device (unique per hwid) */
-function deviceSafeKey(hwid: string): string {
-  const s = String(hwid).trim();
-  try {
-    if (typeof Buffer !== 'undefined') {
-      return Buffer.from(s, 'utf8').toString('base64url').slice(0, 200) || pathKey(s);
-    }
-    const b64 = btoa(unescape(encodeURIComponent(s)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-    return b64.slice(0, 200) || pathKey(s);
-  } catch {
-    return pathKey(s);
-  }
-}
-
-/** Single device node — avoids race when 2 devices login at once */
-function deviceChildUrl(licenseId: string, hwid: string): string {
-  const safe = deviceSafeKey(hwid);
-  return `${RTDB_URL}/licenses/${encodeURIComponent(licenseId)}/devices/${encodeURIComponent(safe)}.json`;
-}
-
-function devicesNodeUrl(licenseId: string): string {
-  return `${RTDB_URL}/licenses/${encodeURIComponent(licenseId)}/devices.json`;
-}
-
 async function rtdbGet<T = unknown>(url: string): Promise<T | null> {
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`RTDB GET ${res.status}: ${await res.text()}`);
@@ -87,8 +60,7 @@ function parseDevices(data: Record<string, unknown>): string[] {
 
   const add = (v: unknown) => {
     const s = String(v ?? '').trim();
-    if (!s || s === 'true' || s === 'false' || s === 'null') return;
-    if (seen.has(s)) return;
+    if (!s || seen.has(s)) return;
     seen.add(s);
     out.push(s);
   };
@@ -97,39 +69,38 @@ function parseDevices(data: Record<string, unknown>): string[] {
 
   if (Array.isArray(raw)) {
     for (const v of raw) {
-      if (v && typeof v === 'object' && v !== null && 'hwid' in v) {
+      if (v && typeof v === 'object' && 'hwid' in (v as object)) {
         add((v as { hwid: unknown }).hwid);
       } else {
         add(v);
       }
     }
   } else if (raw && typeof raw === 'object') {
+    // RTDB: { "0": "hwidA", "1": "hwidB" } OR { "hwidA": true }
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
       if (typeof v === 'string' && v.length > 0) {
-        // value is the real hwid
         add(v);
-      } else if (v && typeof v === 'object' && v !== null && 'hwid' in v) {
+      } else if (v && typeof v === 'object' && 'hwid' in (v as object)) {
         add((v as { hwid: unknown }).hwid);
       } else if (v === true || v === 1) {
-        // key is the hwid (map style)
-        add(k);
-      } else if (typeof v === 'boolean' || typeof v === 'number') {
         if (!/^\d+$/.test(k)) add(k);
-      } else if (v != null && typeof v !== 'object') {
+      } else if (v !== false && v != null && typeof v !== 'object') {
         add(v);
-      } else if (!/^\d+$/.test(k) && k.length > 3) {
-        // fallback: use key if it looks like an id
+      } else if ((v === true || v === 1 || v === false || v == null) && !/^\d+$/.test(k)) {
         add(k);
       }
     }
   }
 
-  // Always merge legacy single hwid field (may hold a 2nd device on old data)
-  add(data.hwid);
+  if (out.length === 0) {
+    add(data.hwid);
+  }
 
   return out;
 }
 
+
+/** Store devices as map { [hwid]: true } — more reliable in Firebase RTDB than arrays */
 function devicesToMap(list: string[]): Record<string, boolean> {
   const m: Record<string, boolean> = {};
   for (const d of list) {
@@ -236,40 +207,22 @@ export async function registerDevice(
   const lic = await getLicenseByKey(key);
   if (!lic) throw new Error('License not found');
 
-  const id = lic.id;
-  const trimmed = String(hwid).trim();
-  if (!trimmed) throw new Error('Missing HWID');
+  const devices = [...(lic.devices || [])];
+  const max = lic.max_devices;
 
-  // Read current devices (array OR object — both supported)
-  const rawDevices = await rtdbGet<unknown>(devicesNodeUrl(id));
-  let devices = parseDevices({
-    devices: rawDevices,
-    hwid: lic.hwid,
-  } as Record<string, unknown>);
-
-  if (devices.some((d) => d === trimmed)) {
-    return { devices, active: devices.length, max: lic.max_devices };
+  if (devices.includes(hwid)) {
+    return { devices, active: devices.length, max };
   }
 
-  const max = lic.max_devices;
   if (max > 0 && devices.length >= max) {
     throw new Error('Device limit reached');
   }
 
-  // Append new hwid
-  devices = [...devices, trimmed];
-
-  // ALWAYS rewrite full devices map so nothing is lost (no partial array overwrite)
-  // and convert legacy array form → object map
-  const map: Record<string, string> = {};
-  for (const d of devices) {
-    map[deviceSafeKey(d)] = d;
-  }
-  await rtdbPut(devicesNodeUrl(id), map);
-
-  // Keep legacy field in sync (first device)
-  await rtdbPatch(licensesUrl(id), { hwid: devices[0] || '' });
-
+  devices.push(String(hwid).trim());
+  await rtdbPatch(licensesUrl(lic.id), {
+    devices: devicesToMap(devices),
+    hwid: devices[0] || '',
+  });
   return { devices, active: devices.length, max };
 }
 
@@ -278,38 +231,32 @@ export async function updateLicenseHwid(key: string, hwid: string): Promise<void
 }
 
 export async function resetLicenseHwid(id: string): Promise<void> {
-  await rtdbPut(devicesNodeUrl(id), null);
-  await rtdbPatch(licensesUrl(id), { hwid: '' });
+  await rtdbPatch(licensesUrl(id), { hwid: '', devices: {} });
 }
 
 export async function removeDevice(id: string, hwid: string): Promise<void> {
+  const data = await rtdbGet<Record<string, unknown>>(licensesUrl(id));
+  if (!data) throw new Error('License not found');
   const target = String(hwid).trim();
-  const rawDevices = await rtdbGet<unknown>(devicesNodeUrl(id));
-  const prev = parseDevices({ devices: rawDevices } as Record<string, unknown>);
-
-  // Prefer direct child delete
-  await rtdbDelete(deviceChildUrl(id, target));
-
-  // Also delete any entry that matches short id (last 8 chars)
-  if (rawDevices && typeof rawDevices === 'object' && !Array.isArray(rawDevices)) {
+  const prev = parseDevices(data);
+  const finalDevices = prev.filter((d) => d !== target);
+  if (finalDevices.length === prev.length) {
+    // try match by last 8 chars (UI short id)
     const short = target.slice(-8);
-    for (const [k, v] of Object.entries(rawDevices as Record<string, unknown>)) {
-      const val = typeof v === 'string' ? v : k;
-      if (val === target || val.slice(-8) === short || k === pathKey(target)) {
-        const child = `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(k)}.json`;
-        await rtdbDelete(child);
-      }
+    const filtered = prev.filter((d) => d.slice(-8) !== short && d !== target);
+    if (filtered.length === prev.length) {
+      throw new Error('Device not found on this license');
     }
+    await rtdbPatch(licensesUrl(id), {
+      devices: devicesToMap(filtered),
+      hwid: filtered[0] || '',
+    });
+    return;
   }
-
-  const next = prev.filter(
-    (d) => d !== target && d.slice(-8) !== target.slice(-8)
-  );
-  if (next.length === prev.length) {
-    // nothing removed from list view — still ok if child delete worked
-  }
-
-  await rtdbPatch(licensesUrl(id), { hwid: next[0] || '' });
+  await rtdbPatch(licensesUrl(id), {
+    devices: devicesToMap(finalDevices),
+    hwid: finalDevices[0] || '',
+  });
 }
 
 export async function updateLicenseFeatures(id: string, features: string): Promise<void> {
