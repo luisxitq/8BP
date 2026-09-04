@@ -267,7 +267,7 @@ export default function DashboardPage() {
   }
 
   function statusBadge(status: string) {
-    if (status === 'active') return 'bg-red-600/25 text-red-400 border-red-500/40';
+    if (status === 'active') return 'bg-emerald-600/25 text-emerald-400 border-emerald-500/40';
     if (status === 'banned') return 'bg-red-600/25 text-red-400 border-red-500/40';
     return 'bg-amber-600/25 text-amber-400 border-amber-500/40';
   }
@@ -329,7 +329,7 @@ export default function DashboardPage() {
             </svg>
             {active} / {max}
           </span>
-          {copiedId === lic.id && <span className="text-red-400 text-[11px]">Copied!</span>}
+          {copiedId === lic.id && <span className="text-emerald-400 text-[11px]">Copied!</span>}
         </div>
 
         {devices.length > 0 ? (
@@ -396,7 +396,7 @@ export default function DashboardPage() {
             <button
               disabled={isBusy}
               onClick={() => patch(lic.id, { status: 'active' })}
-              className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-sky-950/50 hover:bg-sky-900/40 border border-sky-700/40 text-sm text-sky-400 transition touch-manipulation disabled:opacity-40"
+              className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/40 border border-emerald-700/40 text-sm text-emerald-400 transition touch-manipulation disabled:opacity-40"
             >
               Activate
             </button>
@@ -435,17 +435,17 @@ export default function DashboardPage() {
       <header className="border-b border-zinc-800/80 bg-[#121214]/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center">
-              <span className="text-xs sm:text-sm font-bold text-red-400">8BP</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+              <span className="text-xs sm:text-sm font-bold text-emerald-400">8BP</span>
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold leading-tight text-sm sm:text-base truncate">License Panel</h1>
-              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">Itachi Engine</p>
+              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">Aim Engine</p>
             </div>
           </div>
 
           <div className="hidden sm:flex items-center gap-2">
-            <button onClick={() => setShowCreate(true)} className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-medium transition touch-manipulation">
+            <button onClick={() => setShowCreate(true)} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition touch-manipulation">
               + Create Key
             </button>
             <button onClick={load} className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm transition touch-manipulation">
@@ -457,7 +457,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex sm:hidden items-center gap-1.5">
-            <button onClick={() => setShowCreate(true)} className="px-2.5 py-1.5 rounded-xl bg-red-600 text-xs font-medium touch-manipulation">
+            <button onClick={() => setShowCreate(true)} className="px-2.5 py-1.5 rounded-xl bg-emerald-600 text-xs font-medium touch-manipulation">
               + Key
             </button>
             <button onClick={() => setMenuOpen((v) => !v)} className="p-2 rounded-xl bg-zinc-800 touch-manipulation" aria-label="Menu">
@@ -480,7 +480,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5">
           {[
             { label: 'Total', value: stats.total, color: 'text-zinc-100' },
-            { label: 'Active', value: stats.active, color: 'text-red-400' },
+            { label: 'Active', value: stats.active, color: 'text-emerald-400' },
             { label: 'Expired', value: stats.expired, color: 'text-amber-400' },
             { label: 'Banned', value: stats.banned, color: 'text-red-400' },
           ].map((s) => (
@@ -500,7 +500,7 @@ export default function DashboardPage() {
         ) : licenses.length === 0 ? (
           <div className="text-center py-14 border border-dashed border-zinc-800 rounded-2xl px-4">
             <p className="text-zinc-500 mb-3">No hay keys todavía</p>
-            <button onClick={() => setShowCreate(true)} className="px-4 py-2.5 rounded-xl bg-red-600 text-sm font-medium touch-manipulation">
+            <button onClick={() => setShowCreate(true)} className="px-4 py-2.5 rounded-xl bg-emerald-600 text-sm font-medium touch-manipulation">
               Crear primera key
             </button>
           </div>
@@ -521,7 +521,7 @@ export default function DashboardPage() {
             <label className="block text-xs text-zinc-400 mb-1">Key (vacío = auto)</label>
             <input value={customKey} onChange={(e) => setCustomKey(e.target.value)} placeholder="LYN8BP-XXXX-XXXX" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm font-mono" />
             <label className="block text-xs text-zinc-400 mb-1">Note / label</label>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Key Gratis V7" className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Max devices (0 = unlimited)</label>
             <input type="number" min={0} value={maxDevices} onChange={(e) => setMaxDevices(Number(e.target.value))} className="w-full mb-3 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm" />
             <label className="block text-xs text-zinc-400 mb-1">Expires (fecha y hora · vacío = lifetime)</label>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
             />
             <div className="flex gap-2">
               <button onClick={() => setShowCreate(false)} className="flex-1 px-4 py-3 rounded-xl bg-zinc-800 text-sm touch-manipulation">Cancelar</button>
-              <button disabled={busy === 'create'} onClick={createKey} className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-sm font-medium disabled:opacity-50 touch-manipulation">
+              <button disabled={busy === 'create'} onClick={createKey} className="flex-1 px-4 py-3 rounded-xl bg-emerald-600 text-sm font-medium disabled:opacity-50 touch-manipulation">
                 {busy === 'create' ? 'Creando…' : 'Crear'}
               </button>
             </div>
