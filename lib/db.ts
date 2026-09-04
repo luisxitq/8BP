@@ -240,11 +240,14 @@ export async function registerDevice(
   const trimmed = String(hwid).trim();
   if (!trimmed) throw new Error('Missing HWID');
 
-  // Re-read devices node directly (source of truth)
+  // Read current devices (array OR object — both supported)
   const rawDevices = await rtdbGet<unknown>(devicesNodeUrl(id));
-  let devices = parseDevices({ devices: rawDevices, hwid: lic.hwid } as Record<string, unknown>);
+  let devices = parseDevices({
+    devices: rawDevices,
+    hwid: lic.hwid,
+  } as Record<string, unknown>);
 
-  if (devices.includes(trimmed)) {
+  if (devices.some((d) => d === trimmed)) {
     return { devices, active: devices.length, max: lic.max_devices };
   }
 
@@ -253,15 +256,20 @@ export async function registerDevice(
     throw new Error('Device limit reached');
   }
 
-  // Atomic write of THIS device only (does not overwrite siblings)
-  await rtdbPut(deviceChildUrl(id, trimmed), trimmed);
-
-  // Optional legacy field (first device)
-  if (devices.length === 0) {
-    await rtdbPatch(licensesUrl(id), { hwid: trimmed });
-  }
-
+  // Append new hwid
   devices = [...devices, trimmed];
+
+  // ALWAYS rewrite full devices map so nothing is lost (no partial array overwrite)
+  // and convert legacy array form → object map
+  const map: Record<string, string> = {};
+  for (const d of devices) {
+    map[deviceSafeKey(d)] = d;
+  }
+  await rtdbPut(devicesNodeUrl(id), map);
+
+  // Keep legacy field in sync (first device)
+  await rtdbPatch(licensesUrl(id), { hwid: devices[0] || '' });
+
   return { devices, active: devices.length, max };
 }
 
