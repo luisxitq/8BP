@@ -191,8 +191,7 @@ export async function updateLicenseStatus(id: string, status: string): Promise<v
 }
 
 /**
- * Register HWID. Concurrent-safe via multipath PATCH (never replaces whole devices map).
- * Also writes device_log so the panel can count unique logins.
+ * Register HWID. Always writes to Firebase (child PUT). Never replaces whole devices map.
  */
 export async function registerDevice(
   key: string,
@@ -206,51 +205,39 @@ export async function registerDevice(
   if (!trimmed) throw new Error('Missing HWID');
 
   const max = Number(lic.max_devices) || 0;
-  const child = pathKey(trimmed);
+  // Prefer raw hwid as key when Firebase-safe (hex android ids)
+  const child = /^[A-Za-z0-9_-]+$/.test(trimmed) ? trimmed : pathKey(trimmed);
 
-  // Log every validate
-  const logKey = `${Date.now()}_${child.slice(0, 16)}`;
-  try {
-    await rtdbPut(
-      `${RTDB_URL}/licenses/${encodeURIComponent(id)}/device_log/${encodeURIComponent(logKey)}.json`,
-      { hwid: trimmed, at: new Date().toISOString() }
-    );
-  } catch {
-    /* non-fatal */
-  }
-
+  // Read current
   const full = (await rtdbGet<Record<string, unknown>>(licensesUrl(id))) || {};
   let devices = parseDevices(full);
 
-  const already = devices.includes(trimmed);
-  if (!already && max > 0 && devices.length >= max) {
+  if (!devices.includes(trimmed) && max > 0 && devices.length >= max) {
     throw new Error('Device limit reached');
   }
 
-  if (!already) {
-    // Multipath PATCH — adds devices/{child} without wiping siblings
-    const patch: Record<string, unknown> = {
-      [`devices/${child}`]: trimmed,
-    };
-    if (!full.hwid) patch.hwid = trimmed;
-    await rtdbPatch(licensesUrl(id), patch);
+  // ALWAYS write this hwid as its own child (idempotent if already exists)
+  const childUrl = `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(child)}.json`;
+  await rtdbPut(childUrl, trimmed);
 
-    // Direct child PUT as backup
-    await rtdbPut(
-      `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(child)}.json`,
-      trimmed
-    );
-  }
+  // Log
+  const logKey = `${Date.now()}_${child.slice(0, 16)}`;
+  await rtdbPut(
+    `${RTDB_URL}/licenses/${encodeURIComponent(id)}/device_log/${encodeURIComponent(logKey)}.json`,
+    { hwid: trimmed, at: new Date().toISOString() }
+  );
 
+  // Re-read
   const full2 = (await rtdbGet<Record<string, unknown>>(licensesUrl(id))) || {};
   devices = parseDevices(full2);
-  if (!devices.includes(trimmed)) devices = [...devices, trimmed];
-
-  try {
-    await rtdbPatch(licensesUrl(id), { active_devices: devices.length });
-  } catch {
-    /* ignore */
+  if (!devices.includes(trimmed)) {
+    devices = [...devices, trimmed];
   }
+
+  await rtdbPatch(licensesUrl(id), {
+    active_devices: devices.length,
+    hwid: devices[0] || trimmed,
+  });
 
   return { devices, active: devices.length, max };
 }
