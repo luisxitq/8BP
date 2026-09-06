@@ -295,7 +295,7 @@ export async function removeDevice(id: string, hwid: string): Promise<void> {
   ]);
 
   // Delete by known key shapes
-  for (const k of candidates) {
+  for (const k of Array.from(candidates)) {
     await softDelete(`${base}/${encodeURIComponent(k)}.json`);
   }
 
