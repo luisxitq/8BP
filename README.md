@@ -1,4 +1,4 @@
-# 8BP License Panel · Firebase RTDB (sin env vars)
+# 8BP License Panel · Firebase RTDB (sin env vars) 
 
 Todo está **hardcodeado** en `lib/config.ts`.
 
