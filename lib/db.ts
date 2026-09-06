@@ -29,6 +29,22 @@ function devicesNodeUrl(licenseId: string): string {
   return `${RTDB_URL}/licenses/${encodeURIComponent(licenseId)}/devices.json`;
 }
 
+function deviceSafeKey(hwid: string): string {
+  const s = String(hwid).trim();
+  try {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(s, 'utf8').toString('base64url').slice(0, 200) || pathKey(s);
+    }
+    const b64 = btoa(unescape(encodeURIComponent(s)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+    return b64.slice(0, 200) || pathKey(s);
+  } catch {
+    return pathKey(s);
+  }
+}
+
 async function rtdbGet<T = unknown>(url: string): Promise<T | null> {
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`RTDB GET ${res.status}: ${await res.text()}`);
@@ -257,22 +273,47 @@ export async function resetLicenseHwid(id: string): Promise<void> {
 
 export async function removeDevice(id: string, hwid: string): Promise<void> {
   const target = String(hwid).trim();
-  const child = pathKey(target);
+  if (!target) throw new Error('Missing HWID');
 
-  await rtdbDelete(
-    `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(child)}.json`
-  );
+  const softDelete = async (url: string) => {
+    try {
+      const res = await fetch(url, { method: 'DELETE' });
+      // Firebase returns 200 even if missing; ignore other failures for alt keys
+      if (!res.ok && res.status !== 404) {
+        // still try continue
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
-  // Also try delete by scanning
+  const base = `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices`;
+  const candidates = new Set<string>([
+    target,
+    pathKey(target),
+    deviceSafeKey(target),
+  ]);
+
+  // Delete by known key shapes
+  for (const k of candidates) {
+    await softDelete(`${base}/${encodeURIComponent(k)}.json`);
+  }
+
+  // Scan all children and delete matches (value or key or last-8)
   const rawDevices = await rtdbGet<unknown>(devicesNodeUrl(id));
   if (rawDevices && typeof rawDevices === 'object' && !Array.isArray(rawDevices)) {
     const short = target.slice(-8);
     for (const [k, v] of Object.entries(rawDevices as Record<string, unknown>)) {
-      const val = typeof v === 'string' ? v : k;
-      if (val === target || val.slice(-8) === short || k === child) {
-        await rtdbDelete(
-          `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(k)}.json`
-        );
+      const val = typeof v === 'string' ? v : '';
+      if (
+        val === target ||
+        k === target ||
+        k === pathKey(target) ||
+        k === deviceSafeKey(target) ||
+        (val && val.slice(-8) === short) ||
+        k.slice(-8) === short
+      ) {
+        await softDelete(`${base}/${encodeURIComponent(k)}.json`);
       }
     }
   }
