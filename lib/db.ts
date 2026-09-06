@@ -75,21 +75,28 @@ async function rtdbDelete(url: string): Promise<void> {
 }
 
 function parseDevices(data: Record<string, unknown>): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const add = (v: unknown) => {
+  // hwid -> latest known timestamp (ms). Sorted most-recent first at the end.
+  const times = new Map<string, number>();
+
+  const add = (v: unknown, at?: unknown) => {
     const s = String(v ?? '').trim();
     if (!s || s === 'true' || s === 'false' || s === 'null' || s === 'undefined') return;
-    if (seen.has(s)) return;
-    seen.add(s);
-    out.push(s);
+    let ts = 0;
+    if (typeof at === 'number' && Number.isFinite(at)) ts = at;
+    else if (typeof at === 'string' && at) {
+      const p = Date.parse(at);
+      if (!Number.isNaN(p)) ts = p;
+    }
+    const prev = times.get(s);
+    if (prev === undefined || ts >= prev) times.set(s, ts);
   };
 
   const raw = data.devices;
   if (Array.isArray(raw)) {
     for (const v of raw) {
       if (v && typeof v === 'object' && v !== null && 'hwid' in v) {
-        add((v as { hwid: unknown }).hwid);
+        const o = v as { hwid: unknown; bound_at?: unknown; at?: unknown };
+        add(o.hwid, o.bound_at ?? o.at);
       } else {
         add(v);
       }
@@ -98,7 +105,8 @@ function parseDevices(data: Record<string, unknown>): string[] {
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
       if (typeof v === 'string' && v.length > 2) add(v);
       else if (v && typeof v === 'object' && v !== null && 'hwid' in v) {
-        add((v as { hwid: unknown }).hwid);
+        const o = v as { hwid: unknown; bound_at?: unknown; at?: unknown };
+        add(o.hwid, o.bound_at ?? o.at);
       } else if (v === true || v === 1) add(k);
       else if (typeof v !== 'object' && v != null) add(v);
       else if (k.length > 4 && !/^\d+$/.test(k)) add(k);
@@ -107,10 +115,22 @@ function parseDevices(data: Record<string, unknown>): string[] {
 
   add(data.hwid);
 
-  // NOTE: device_log is audit-only — do NOT merge into devices list
-  // (otherwise deleted HWIDs reappear from the log)
+  // Use device_log only to improve timestamps of devices already present
+  // (do NOT add new hwids from log — deleted chips must stay gone)
+  const log = data.device_log;
+  if (log && typeof log === 'object' && !Array.isArray(log)) {
+    for (const entry of Object.values(log as Record<string, unknown>)) {
+      if (entry && typeof entry === 'object' && entry !== null && 'hwid' in entry) {
+        const o = entry as { hwid: unknown; at?: unknown };
+        const h = String(o.hwid ?? '').trim();
+        if (h && times.has(h)) add(h, o.at);
+      }
+    }
+  }
 
-  return out;
+  return Array.from(times.entries())
+    .sort((a, b) => b[1] - a[1]) // most recent first
+    .map(([h]) => h);
 }
 
 function resolveStatus(
@@ -138,7 +158,7 @@ function mapLicense(id: string, data: Record<string, unknown>): License {
     hwid: devices[0] ?? '',
     devices,
     features: String(data.features ?? ''),
-    active_devices: Math.max(devices.length, Number(data.active_devices ?? 0) || 0),
+    active_devices: devices.length,
   };
 }
 
@@ -227,8 +247,10 @@ export async function registerDevice(
   }
 
   // ALWAYS write this hwid as its own child (idempotent if already exists)
+  // Store bound_at so panel can sort most-recent first
   const childUrl = `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(child)}.json`;
-  await rtdbPut(childUrl, trimmed);
+  const nowIso = new Date().toISOString();
+  await rtdbPut(childUrl, { hwid: trimmed, bound_at: nowIso });
 
   // Log
   const logKey = `${Date.now()}_${child.slice(0, 16)}`;
@@ -298,7 +320,12 @@ export async function removeDevice(id: string, hwid: string): Promise<void> {
   if (rawDevices && typeof rawDevices === 'object' && !Array.isArray(rawDevices)) {
     const short = target.slice(-8);
     for (const [k, v] of Object.entries(rawDevices as Record<string, unknown>)) {
-      const val = typeof v === 'string' ? v : '';
+      const val =
+        typeof v === 'string'
+          ? v
+          : v && typeof v === 'object' && v !== null && 'hwid' in v
+            ? String((v as { hwid: unknown }).hwid)
+            : '';
       if (
         val === target ||
         k === target ||

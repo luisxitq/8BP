@@ -274,7 +274,7 @@ export default function DashboardPage() {
 
   function LicenseCard({ lic }: { lic: License }) {
     const devices = lic.devices?.length ? lic.devices : lic.hwid ? [lic.hwid] : [];
-    const active = Math.max(devices.length, lic.active_devices ?? 0);
+    const active = devices.length;
     const max = lic.max_devices > 0 ? lic.max_devices : '∞';
     const isBusy = busy === lic.id;
 
