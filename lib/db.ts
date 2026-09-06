@@ -107,14 +107,8 @@ function parseDevices(data: Record<string, unknown>): string[] {
 
   add(data.hwid);
 
-  const log = data.device_log;
-  if (log && typeof log === 'object' && !Array.isArray(log)) {
-    for (const entry of Object.values(log as Record<string, unknown>)) {
-      if (entry && typeof entry === 'object' && entry !== null && 'hwid' in entry) {
-        add((entry as { hwid: unknown }).hwid);
-      }
-    }
-  }
+  // NOTE: device_log is audit-only — do NOT merge into devices list
+  // (otherwise deleted HWIDs reappear from the log)
 
   return out;
 }
@@ -314,6 +308,25 @@ export async function removeDevice(id: string, hwid: string): Promise<void> {
         k.slice(-8) === short
       ) {
         await softDelete(`${base}/${encodeURIComponent(k)}.json`);
+      }
+    }
+  }
+
+  // Purge matching entries from device_log so they cannot reappear
+  const log = await rtdbGet<Record<string, unknown>>(
+    `${RTDB_URL}/licenses/${encodeURIComponent(id)}/device_log.json`
+  );
+  if (log && typeof log === 'object') {
+    const short = target.slice(-8);
+    for (const [lk, lv] of Object.entries(log)) {
+      const h =
+        lv && typeof lv === 'object' && lv !== null && 'hwid' in lv
+          ? String((lv as { hwid: unknown }).hwid)
+          : '';
+      if (h === target || h.slice(-8) === short) {
+        await softDelete(
+          `${RTDB_URL}/licenses/${encodeURIComponent(id)}/device_log/${encodeURIComponent(lk)}.json`
+        );
       }
     }
   }
