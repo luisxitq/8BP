@@ -4,13 +4,6 @@
 
 :root {
   color-scheme: dark;
-  --ie-bg: #070708;
-  --ie-card: #120c0e;
-  --ie-border: #3a1518;
-  --ie-red: #e11d2e;
-  --ie-red-soft: #ff3b4a;
-  --ie-red-dim: rgba(225, 29, 46, 0.15);
-  --ie-glow: rgba(225, 29, 46, 0.35);
 }
 
 html {
@@ -18,13 +11,8 @@ html {
 }
 
 body {
-  @apply text-zinc-100 antialiased;
-  background: var(--ie-bg);
+  @apply bg-zinc-950 text-zinc-100 antialiased;
   padding-bottom: env(safe-area-inset-bottom);
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 0, 20, 0.35), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(60, 0, 10, 0.25), transparent);
-  background-attachment: fixed;
 }
 
 input,
@@ -32,7 +20,7 @@ select,
 textarea,
 button {
   @apply outline-none;
-  font-size: 16px;
+  font-size: 16px; /* evita zoom automático en iOS */
 }
 
 @media (min-width: 640px) {
@@ -41,177 +29,5 @@ button {
   textarea,
   button {
     font-size: inherit;
-  }
-}
-
-/* ── ItachiEngine base ── */
-.ie-card {
-  background: linear-gradient(180deg, #161012 0%, #0e0a0c 100%);
-  border: 1px solid var(--ie-border);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.45);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-.ie-card:hover {
-  border-color: rgba(225, 29, 46, 0.35);
-  box-shadow: 0 0 0 1px rgba(225, 29, 46, 0.12), 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 28px rgba(225, 29, 46, 0.08);
-  transform: translateY(-2px);
-}
-
-.ie-btn-primary {
-  background: linear-gradient(180deg, #e11d2e 0%, #9f1020 100%);
-  color: white;
-  font-weight: 600;
-  transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 0 20px var(--ie-glow);
-}
-.ie-btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 0 28px rgba(225, 29, 46, 0.5);
-}
-.ie-btn-primary:active {
-  transform: scale(0.97);
-}
-.ie-btn-primary:disabled {
-  opacity: 0.5;
-}
-
-.ie-input {
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.ie-input:focus {
-  border-color: var(--ie-red) !important;
-  box-shadow: 0 0 0 3px var(--ie-red-dim);
-}
-
-.ie-badge-active {
-  background: rgba(225, 29, 46, 0.18);
-  color: #ff6b76;
-  border: 1px solid rgba(225, 29, 46, 0.4);
-}
-
-.ie-logo-ring {
-  animation: ie-pulse-glow 2.8s ease-in-out infinite;
-}
-
-/* ── Keyframes ── */
-@keyframes ie-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes ie-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes ie-scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes ie-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes ie-pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 18px rgba(225, 29, 46, 0.25);
-  }
-  50% {
-    box-shadow: 0 0 36px rgba(225, 29, 46, 0.55);
-  }
-}
-
-@keyframes ie-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes ie-soft-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* ── Utility animation classes ── */
-.ie-anim-in {
-  animation: ie-fade-up 0.45s ease-out both;
-}
-.ie-anim-fade {
-  animation: ie-fade-in 0.35s ease-out both;
-}
-.ie-anim-scale {
-  animation: ie-scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.ie-anim-modal {
-  animation: ie-scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@media (max-width: 639px) {
-  .ie-anim-modal {
-    animation: ie-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-}
-
-.ie-stagger > * {
-  animation: ie-fade-up 0.4s ease-out both;
-}
-.ie-stagger > *:nth-child(1) { animation-delay: 0.03s; }
-.ie-stagger > *:nth-child(2) { animation-delay: 0.07s; }
-.ie-stagger > *:nth-child(3) { animation-delay: 0.11s; }
-.ie-stagger > *:nth-child(4) { animation-delay: 0.15s; }
-.ie-stagger > *:nth-child(5) { animation-delay: 0.19s; }
-.ie-stagger > *:nth-child(6) { animation-delay: 0.23s; }
-.ie-stagger > *:nth-child(7) { animation-delay: 0.27s; }
-.ie-stagger > *:nth-child(8) { animation-delay: 0.31s; }
-.ie-stagger > *:nth-child(n+9) { animation-delay: 0.35s; }
-
-.ie-chip {
-  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.ie-chip:hover {
-  transform: scale(1.04);
-}
-.ie-chip:active {
-  transform: scale(0.96);
-}
-
-.ie-stat {
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-.ie-stat:hover {
-  transform: translateY(-2px);
-  border-color: rgba(225, 29, 46, 0.3);
-}
-
-button, a {
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }
