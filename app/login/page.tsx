@@ -2,7 +2,29 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+
+/** Logo inline — no depende de /public (siempre se ve) */
+function ItachiLogo({ className = 'w-20 h-20' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="ItachiEngine">
+      <defs>
+        <radialGradient id="ieGlow" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="#ff2a2a" />
+          <stop offset="55%" stopColor="#9b0000" />
+          <stop offset="100%" stopColor="#1a0000" />
+        </radialGradient>
+      </defs>
+      <circle cx="64" cy="64" r="60" fill="#0a0a0a" stroke="#5c0000" strokeWidth="2" />
+      <circle cx="64" cy="64" r="42" fill="url(#ieGlow)" opacity="0.95" />
+      <circle cx="64" cy="64" r="28" fill="none" stroke="#ff4d4d" strokeWidth="2" opacity="0.7" />
+      <circle cx="64" cy="64" r="14" fill="#1a0000" stroke="#ff1a1a" strokeWidth="2" />
+      <circle cx="64" cy="64" r="5" fill="#ff2a2a" />
+      <path d="M64 22c18 6 28 20 28 36" stroke="#ff6666" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.85" />
+      <path d="M98 78c-10 16-26 26-42 26" stroke="#ff6666" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.85" />
+      <path d="M40 90c-12-14-14-32-6-46" stroke="#ff6666" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.85" />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,22 +59,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 relative overflow-hidden">
-      {/* ambient red glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(180,0,25,0.25),_transparent_55%)]" />
-      <div
-        className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 opacity-40"
-        style={{
-          backgroundImage: 'url(/crow.svg)',
-          backgroundRepeat: 'repeat-x',
-          backgroundPosition: 'bottom center',
-          backgroundSize: '80px auto',
-        }}
-      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(180,0,25,0.28),_transparent_55%)]" />
 
       <div className="w-full max-w-sm sm:max-w-md relative z-10">
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full ie-logo-ring mb-4 border border-red-900/50 bg-black/40 p-2">
-            <Image src="/logo.svg" alt="ItachiEngine" width={80} height={80} priority />
+          <div className="inline-flex items-center justify-center rounded-full ie-logo-ring mb-4 border border-red-900/60 bg-black/50 p-2 shadow-[0_0_40px_rgba(225,29,46,0.35)]">
+            <ItachiLogo className="w-20 h-20 sm:w-24 sm:h-24" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             <span className="text-white">Itachi</span>
@@ -61,10 +73,7 @@ export default function LoginPage() {
           <p className="text-zinc-500 text-sm mt-1.5">License Admin Panel</p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="ie-card rounded-2xl p-5 sm:p-6 backdrop-blur"
-        >
+        <form onSubmit={handleSubmit} className="ie-card rounded-2xl p-5 sm:p-6 backdrop-blur">
           {error && (
             <div className="mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
               {error}
