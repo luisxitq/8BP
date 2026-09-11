@@ -61,9 +61,9 @@ export default function LoginPage() {
     <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(180,0,25,0.28),_transparent_55%)]" />
 
-      <div className="w-full max-w-sm sm:max-w-md relative z-10">
+      <div className="w-full max-w-sm sm:max-w-md relative z-10 ie-anim-scale">
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center rounded-full ie-logo-ring mb-4 border border-red-900/60 bg-black/50 p-2 shadow-[0_0_40px_rgba(225,29,46,0.35)]">
+          <div className="inline-flex items-center justify-center rounded-full ie-logo-ring mb-4 border border-red-900/60 bg-black/50 p-2">
             <ItachiLogo className="w-20 h-20 sm:w-24 sm:h-24" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
