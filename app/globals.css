@@ -4,6 +4,13 @@
 
 :root {
   color-scheme: dark;
+  --ie-bg: #070708;
+  --ie-card: #120c0e;
+  --ie-border: #3a1518;
+  --ie-red: #e11d2e;
+  --ie-red-soft: #ff3b4a;
+  --ie-red-dim: rgba(225, 29, 46, 0.15);
+  --ie-glow: rgba(225, 29, 46, 0.35);
 }
 
 html {
@@ -11,8 +18,13 @@ html {
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  @apply text-zinc-100 antialiased;
+  background: var(--ie-bg);
   padding-bottom: env(safe-area-inset-bottom);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 0, 20, 0.35), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(60, 0, 10, 0.25), transparent);
+  background-attachment: fixed;
 }
 
 input,
@@ -20,7 +32,7 @@ select,
 textarea,
 button {
   @apply outline-none;
-  font-size: 16px; /* evita zoom automático en iOS */
+  font-size: 16px;
 }
 
 @media (min-width: 640px) {
@@ -30,4 +42,43 @@ button {
   button {
     font-size: inherit;
   }
+}
+
+/* ItachiEngine accents */
+.ie-card {
+  background: linear-gradient(180deg, #161012 0%, #0e0a0c 100%);
+  border: 1px solid var(--ie-border);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.ie-btn-primary {
+  background: linear-gradient(180deg, #e11d2e 0%, #9f1020 100%);
+  color: white;
+  font-weight: 600;
+  transition: filter 0.15s, transform 0.1s;
+  box-shadow: 0 0 20px var(--ie-glow);
+}
+.ie-btn-primary:hover {
+  filter: brightness(1.08);
+}
+.ie-btn-primary:active {
+  transform: scale(0.98);
+}
+.ie-btn-primary:disabled {
+  opacity: 0.5;
+}
+
+.ie-input:focus {
+  border-color: var(--ie-red) !important;
+  box-shadow: 0 0 0 3px var(--ie-red-dim);
+}
+
+.ie-badge-active {
+  background: rgba(225, 29, 46, 0.18);
+  color: #ff6b76;
+  border: 1px solid rgba(225, 29, 46, 0.4);
+}
+
+.ie-logo-ring {
+  box-shadow: 0 0 24px var(--ie-glow);
 }

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#ff2a2a"/>
+      <stop offset="55%" stop-color="#9b0000"/>
+      <stop offset="100%" stop-color="#1a0000"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="#0a0a0a" stroke="#5c0000" stroke-width="2"/>
+  <circle cx="64" cy="64" r="42" fill="url(#g)" opacity="0.95"/>
+  <circle cx="64" cy="64" r="28" fill="none" stroke="#ff4d4d" stroke-width="2" opacity="0.7"/>
+  <circle cx="64" cy="64" r="14" fill="#1a0000" stroke="#ff1a1a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="5" fill="#ff2a2a"/>
+  <!-- abstract tomoe-like arcs (original) -->
+  <path d="M64 22c18 6 28 20 28 36" stroke="#ff6666" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M98 78c-10 16-26 26-42 26" stroke="#ff6666" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <path d="M40 90c-12-14-14-32-6-46" stroke="#ff6666" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.85"/>
+</svg>

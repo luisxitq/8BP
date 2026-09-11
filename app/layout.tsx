@@ -2,12 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '8BP License Panel',
-  description: 'Admin panel for 8 Ball Pool mod licenses',
+  title: 'ItachiEngine · License Panel',
+  description: 'ItachiEngine admin panel for license keys',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '8BP Panel',
+    title: 'ItachiEngine',
+  },
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo.svg',
   },
 };
 
@@ -16,7 +20,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#09090b',
+  themeColor: '#070708',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
