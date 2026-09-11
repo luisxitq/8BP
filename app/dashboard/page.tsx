@@ -267,7 +267,7 @@ export default function DashboardPage() {
   }
 
   function statusBadge(status: string) {
-    if (status === 'active') return 'ie-badge-active';
+    if (status === 'active') return 'bg-emerald-600/25 text-emerald-400 border-emerald-500/40';
     if (status === 'banned') return 'bg-red-600/25 text-red-400 border-red-500/40';
     return 'bg-amber-600/25 text-amber-400 border-amber-500/40';
   }
@@ -320,7 +320,7 @@ export default function DashboardPage() {
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            <span>{formatDate(lic.expires_at || lic.created_at)}</span>
+            <span className={lic.expires_at ? "" : "text-emerald-400 font-medium"}>{formatDate(lic.expires_at)}</span>
           </span>
           <span className="inline-flex items-center gap-1.5 font-medium text-zinc-200">
             <svg className="w-3.5 h-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -496,7 +496,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5">
           {[
             { label: 'Total', value: stats.total, color: 'text-zinc-100' },
-            { label: 'Active', value: stats.active, color: 'text-red-400' },
+            { label: 'Active', value: stats.active, color: 'text-emerald-400' },
             { label: 'Expired', value: stats.expired, color: 'text-amber-400' },
             { label: 'Banned', value: stats.banned, color: 'text-red-400' },
           ].map((s) => (
@@ -545,8 +545,11 @@ export default function DashboardPage() {
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
             />
+            <p className={`text-xs mt-1.5 mb-4 ${expiresAt ? 'text-zinc-500' : 'text-emerald-400 font-medium'}`}>
+              {expiresAt ? `Expira: ${expiresAt.replace('T', ' ')}` : 'Lifetime · sin fecha de expiración'}
+            </p>
             <div className="flex gap-2">
               <button onClick={() => setShowCreate(false)} className="flex-1 px-4 py-3 rounded-xl bg-zinc-800 text-sm touch-manipulation">Cancelar</button>
               <button disabled={busy === 'create'} onClick={createKey} className="flex-1 px-4 py-3 rounded-xl ie-btn-primary text-sm disabled:opacity-50 touch-manipulation">
@@ -579,11 +582,14 @@ export default function DashboardPage() {
               type="datetime-local"
               value={editExpiresAt}
               onChange={(e) => setEditExpiresAt(e.target.value)}
-              className="w-full mb-5 px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
+              className="w-full px-3 py-3 sm:py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm"
             />
+            <p className={`text-xs mt-1.5 mb-4 ${editExpiresAt ? 'text-zinc-500' : 'text-emerald-400 font-medium'}`}>
+              {editExpiresAt ? `Expira: ${editExpiresAt.replace('T', ' ')}` : 'Lifetime · sin fecha de expiración'}
+            </p>
             <div className="flex gap-2">
               <button onClick={() => setEditLic(null)} className="flex-1 px-4 py-3 rounded-xl bg-zinc-800 text-sm touch-manipulation">Cancelar</button>
-              <button disabled={busy === editLic.id || !editKey.trim()} onClick={saveEdit} className="flex-1 px-4 py-3 rounded-xl bg-sky-600 text-sm font-medium disabled:opacity-50 touch-manipulation">
+              <button disabled={busy === editLic.id || !editKey.trim()} onClick={saveEdit} className="flex-1 px-4 py-3 rounded-xl ie-btn-primary text-sm font-medium disabled:opacity-50 touch-manipulation">
                 {busy === editLic.id ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
