@@ -366,7 +366,7 @@ export default function DashboardPage() {
                     setBusy(null);
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 border border-zinc-700/80 text-[11px] font-mono text-sky-400 hover:border-red-500/50 hover:text-red-300 transition touch-manipulation"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 border border-zinc-700/80 text-[11px] font-mono text-sky-400 hover:border-red-500/50 hover:text-red-300 touch-manipulation"
               >
                 <ChipIcon className="w-3 h-3 text-sky-500" />
                 {shortId(d)}
