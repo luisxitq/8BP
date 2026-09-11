@@ -247,10 +247,23 @@ export async function registerDevice(
   }
 
   // ALWAYS write this hwid as its own child (idempotent if already exists)
-  // Store bound_at so panel can sort most-recent first
+  // bound_at = first bind; last_seen = every validate (for online count)
   const childUrl = `${RTDB_URL}/licenses/${encodeURIComponent(id)}/devices/${encodeURIComponent(child)}.json`;
   const nowIso = new Date().toISOString();
-  await rtdbPut(childUrl, { hwid: trimmed, bound_at: nowIso });
+  let boundAt = nowIso;
+  try {
+    const prev = await rtdbGet<Record<string, unknown> | string>(childUrl);
+    if (prev && typeof prev === 'object' && prev.bound_at) {
+      boundAt = String(prev.bound_at);
+    }
+  } catch {
+    /* new device */
+  }
+  await rtdbPut(childUrl, {
+    hwid: trimmed,
+    bound_at: boundAt,
+    last_seen: nowIso,
+  });
 
   // Log
   const logKey = `${Date.now()}_${child.slice(0, 16)}`;
@@ -389,7 +402,29 @@ export async function getStats() {
     else if (l.status === 'expired' || (l.expires_at && new Date(l.expires_at) < now)) expired++;
     else if (l.status === 'active') active++;
   }
-  return { total, active, expired, banned };
+
+  // Players online = devices with last_seen in the last ONLINE_WINDOW_MS
+  const ONLINE_WINDOW_MS = 12 * 60 * 1000; // 12 minutes
+  let online = 0;
+  const root = await rtdbGet<Record<string, Record<string, unknown>>>(licensesUrl());
+  if (root && typeof root === 'object') {
+    const cutoff = Date.now() - ONLINE_WINDOW_MS;
+    for (const raw of Object.values(root)) {
+      const devices = raw?.devices;
+      if (!devices || typeof devices !== 'object' || Array.isArray(devices)) continue;
+      for (const v of Object.values(devices as Record<string, unknown>)) {
+        let last = 0;
+        if (v && typeof v === 'object' && v !== null) {
+          const o = v as { last_seen?: unknown; bound_at?: unknown; at?: unknown };
+          const src = o.last_seen ?? o.bound_at ?? o.at;
+          if (typeof src === 'string') last = Date.parse(src) || 0;
+        }
+        if (last >= cutoff) online++;
+      }
+    }
+  }
+
+  return { total, active, expired, banned, online };
 }
 
 export async function extendLicense(id: string, days: number): Promise<void> {

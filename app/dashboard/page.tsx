@@ -23,6 +23,7 @@ interface Stats {
   active: number;
   expired: number;
   banned: number;
+  online: number;
 }
 
 function shortId(hwid: string): string {
@@ -104,7 +105,7 @@ function ChipIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
 export default function DashboardPage() {
   const router = useRouter();
   const [licenses, setLicenses] = useState<License[]>([]);
-  const [stats, setStats] = useState<Stats>({ total: 0, active: 0, expired: 0, banned: 0 });
+  const [stats, setStats] = useState<Stats>({ total: 0, active: 0, expired: 0, banned: 0, online: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -136,7 +137,7 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setLicenses(data.licenses || []);
-      setStats(data.stats || { total: 0, active: 0, expired: 0, banned: 0 });
+      setStats(data.stats || { total: 0, active: 0, expired: 0, banned: 0, online: 0 });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -146,6 +147,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load();
+    // Soft real-time: refresh stats every 15s
+    const id = setInterval(() => {
+      load();
+    }, 15000);
+    return () => clearInterval(id);
   }, [load]);
 
   async function logout() {
@@ -493,16 +499,20 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-5">
           {[
-            { label: 'Total', value: stats.total, color: 'text-zinc-100' },
-            { label: 'Active', value: stats.active, color: 'text-emerald-400' },
-            { label: 'Expired', value: stats.expired, color: 'text-amber-400' },
-            { label: 'Banned', value: stats.banned, color: 'text-red-400' },
+            { label: 'Jugando', value: stats.online ?? 0, color: 'text-emerald-400', hint: 'últ. 12 min' },
+            { label: 'Total', value: stats.total, color: 'text-zinc-100', hint: 'keys' },
+            { label: 'Active', value: stats.active, color: 'text-emerald-300', hint: 'keys' },
+            { label: 'Expired', value: stats.expired, color: 'text-amber-400', hint: 'keys' },
+            { label: 'Banned', value: stats.banned, color: 'text-red-400', hint: 'keys' },
           ].map((s) => (
             <div key={s.label} className="rounded-xl ie-card px-3 py-2.5 sm:px-4 sm:py-3">
               <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wide">{s.label}</p>
               <p className={`text-xl sm:text-2xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+              {'hint' in s && s.hint ? (
+                <p className="text-[9px] text-zinc-600 mt-0.5">{s.hint}</p>
+              ) : null}
             </div>
           ))}
         </div>
