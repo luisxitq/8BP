@@ -444,8 +444,13 @@ export default function DashboardPage() {
       <header className="border-b border-red-950/60 bg-black/70 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-black/50 border border-red-900/50 ie-logo-ring flex items-center justify-center overflow-hidden p-1">
-              <img src="/logo.svg" alt="ItachiEngine" className="w-full h-full" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-black/50 border border-red-900/50 ie-logo-ring flex items-center justify-center overflow-hidden p-0.5">
+              <svg className="w-full h-full" viewBox="0 0 128 128" fill="none" aria-hidden>
+                <circle cx="64" cy="64" r="60" fill="#0a0a0a" stroke="#5c0000" strokeWidth="2"/>
+                <circle cx="64" cy="64" r="42" fill="#9b0000"/>
+                <circle cx="64" cy="64" r="14" fill="#1a0000" stroke="#ff1a1a" strokeWidth="2"/>
+                <circle cx="64" cy="64" r="5" fill="#ff2a2a"/>
+              </svg>
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold leading-tight text-sm sm:text-base truncate">
